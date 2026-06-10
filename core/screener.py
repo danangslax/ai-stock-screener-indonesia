@@ -22,6 +22,10 @@ from core.daily_timeframe import (
     analyze_daily_timeframe
 )
 
+from core.relative_strength import (
+    calculate_relative_strength
+)
+
 # ======================================
 # BASE DIRECTORY
 # ======================================
@@ -358,10 +362,62 @@ def run_screener():
 
                     continue
 
+                # ======================================
+                # RELATIVE STRENGTH ANALYSIS
+                # ======================================
+
+                rs_analysis = (
+                    calculate_relative_strength(df)
+                )
+
+                if rs_analysis is None:
+
+                    continue
+
+                # ======================================
+                # RELATIVE STRENGTH FILTER
+                # ======================================
+
+                if (
+                    rs_analysis["status"]
+                    ==
+                    "WEAK"
+                ):
+
+                    continue
+
                 score = calculate_score(
                     latest,
                     df
                 )
+
+                # ======================================
+                # DAILY TIMEFRAME BONUS
+                # ======================================
+
+                score += int(
+                    daily_analysis["score"] * 0.2
+                )
+
+                # ======================================
+                # RELATIVE STRENGTH BONUS
+                # ======================================
+
+                if (
+                    rs_analysis["status"]
+                    ==
+                    "MARKET LEADER"
+                ):
+
+                    score += 15
+
+                elif (
+                    rs_analysis["status"]
+                    ==
+                    "STRONG"
+                ):
+
+                    score += 8
 
                 # ======================================
                 # DAILY TIMEFRAME BONUS
@@ -512,6 +568,21 @@ def run_screener():
                     "Daily_Score": (
                         daily_analysis["score"]
                     ),
+                    
+                    "RS_Ratio": (
+                        rs_analysis["rs_ratio"]
+                    ),
+
+                    "Relative_Performance": (
+                        rs_analysis[
+                            "relative_performance"
+                        ]
+                    ),
+
+                    "RS_Status": (
+                        rs_analysis["status"]
+                    ),
+
 
                 })
 
@@ -556,6 +627,8 @@ def run_screener():
                 by=[
 
                     "Score",
+
+                    "RS_Ratio",
 
                     "Relative_Volume"
                 ],
