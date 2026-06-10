@@ -47,6 +47,13 @@ from core.paper_trading import (
     load_trades
 )
 
+from core.analytics import (
+
+    calculate_portfolio_metrics,
+
+    generate_equity_curve
+)
+
 # ======================================
 # PAGE CONFIG
 # ======================================
@@ -660,6 +667,174 @@ else:
 
     st.info(
         "Belum ada hasil screening"
+    )
+
+# ======================================
+# PORTFOLIO ANALYTICS
+# ======================================
+
+st.divider()
+
+st.header(
+    "📊 Portfolio Analytics"
+)
+
+try:
+
+    analytics_trades = (
+        load_trades()
+    )
+
+except Exception as e:
+
+    st.error(
+        f"Analytics error: {e}"
+    )
+
+    analytics_trades = []
+
+# ======================================
+# CALCULATE METRICS
+# ======================================
+
+metrics = calculate_portfolio_metrics(
+    analytics_trades
+)
+
+# ======================================
+# METRICS ROW 1
+# ======================================
+
+col1, col2, col3, col4 = (
+    st.columns(4)
+)
+
+col1.metric(
+
+    "Total Trades",
+
+    metrics["total_trades"]
+)
+
+col2.metric(
+
+    "Winrate",
+
+    f"{metrics['winrate']}%"
+)
+
+col3.metric(
+
+    "Total PnL",
+
+    f"Rp {metrics['total_pnl']:,.0f}"
+)
+
+col4.metric(
+
+    "Profit Factor",
+
+    metrics["profit_factor"]
+)
+
+# ======================================
+# METRICS ROW 2
+# ======================================
+
+col1, col2, col3, col4 = (
+    st.columns(4)
+)
+
+col1.metric(
+
+    "Winning Trades",
+
+    metrics["winning_trades"]
+)
+
+col2.metric(
+
+    "Losing Trades",
+
+    metrics["losing_trades"]
+)
+
+col3.metric(
+
+    "Average RR",
+
+    metrics["average_rr"]
+)
+
+col4.metric(
+
+    "Expectancy",
+
+    metrics["expectancy"]
+)
+
+# ======================================
+# BEST / WORST
+# ======================================
+
+col1, col2 = st.columns(2)
+
+col1.success(
+
+    f"🏆 Best Trade: "
+    f"Rp {metrics['best_trade']:,.0f}"
+)
+
+col2.error(
+
+    f"📉 Worst Trade: "
+    f"Rp {metrics['worst_trade']:,.0f}"
+)
+
+# ======================================
+# EQUITY CURVE
+# ======================================
+
+equity_df = generate_equity_curve(
+    analytics_trades
+)
+
+if not equity_df.empty:
+
+    st.subheader(
+        "📈 Equity Curve"
+    )
+
+    equity_fig = go.Figure()
+
+    equity_fig.add_trace(
+
+        go.Scatter(
+
+            x=equity_df.index,
+
+            y=equity_df["equity"],
+
+            mode="lines",
+
+            name="Equity"
+        )
+    )
+
+    equity_fig.update_layout(
+
+        height=400,
+
+        xaxis_title="Trade",
+
+        yaxis_title="Balance"
+    )
+
+    st.plotly_chart(
+
+        equity_fig,
+
+        use_container_width=True
     )
 
 # ======================================
