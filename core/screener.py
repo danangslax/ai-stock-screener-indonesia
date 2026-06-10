@@ -18,6 +18,10 @@ from core.market import (
     get_market_status
 )
 
+from core.daily_timeframe import ( 
+    analyze_daily_timeframe
+)
+
 # ======================================
 # BASE DIRECTORY
 # ======================================
@@ -153,18 +157,16 @@ def run_screener():
                 required_columns = [
 
                     "RSI",
-
                     "ATR",
-
                     "ADX",
-
                     "EMA20",
-
                     "EMA50",
-
+                    "EMA200",
+                    "MACD",
+                    "MACD_SIGNAL",
                     "VOLATILITY",
-
-                    "VOL_MA20"
+                    "VOL_MA20",
+                    
                 ]
 
                 missing_columns = [
@@ -329,9 +331,44 @@ def run_screener():
                 # CALCULATE SCORE
                 # ======================================
 
+                # ======================================
+                # DAILY TIMEFRAME ANALYSIS
+                # ======================================
+
+                daily_analysis = (
+                    analyze_daily_timeframe(df)
+                )
+
+                if daily_analysis is None:
+
+                    continue
+
+                # ======================================
+                # DAILY TREND FILTER
+                # ======================================
+
+                if (
+
+                    daily_analysis["status"]
+
+                    ==
+
+                    "WEAK"
+                ):
+
+                    continue
+
                 score = calculate_score(
                     latest,
                     df
+                )
+
+                # ======================================
+                # DAILY TIMEFRAME BONUS
+                # ======================================
+
+                score += int(
+                    daily_analysis["score"] * 0.2
                 )
 
                 # ======================================
@@ -466,7 +503,16 @@ def run_screener():
 
                     "Market": (
                         market["status"]
-                    )
+                    ),
+                    
+                    "Daily_Status": (
+                        daily_analysis["status"]
+                    ),
+
+                    "Daily_Score": (
+                        daily_analysis["score"]
+                    ),
+
                 })
 
             except Exception as e:

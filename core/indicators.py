@@ -228,3 +228,33 @@ def add_indicators(df):
         )
 
         return pd.DataFrame()
+    
+# ======================================
+# EMA 200
+# ======================================
+
+df["EMA200"] = ta.trend.ema_indicator(
+
+    df["Close"],
+
+    window=200
+)
+
+# ======================================
+# MACD
+# ======================================
+
+macd = ta.trend.MACD(
+
+    close=df["Close"]
+)
+
+df["MACD"] = macd.macd()
+
+df["MACD_SIGNAL"] = (
+    macd.macd_signal()
+)
+
+df["MACD_HIST"] = (
+    macd.macd_diff()
+)
