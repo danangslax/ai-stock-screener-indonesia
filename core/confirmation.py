@@ -1,8 +1,13 @@
-import yfinance as yf
-import pandas as pd
+from core.data_loader import (
+    load_stock_data
+)
+
+from core.indicators import (
+    add_indicators
+)
 
 # ======================================
-# MORNING CONFIRMATION
+# MORNING CONFIRMATION ENGINE
 # ======================================
 
 def morning_confirmation(symbol):
@@ -10,36 +15,55 @@ def morning_confirmation(symbol):
     try:
 
         # ======================================
-        # DOWNLOAD INTRADAY DATA
+        # LOAD INTRADAY DATA
         # ======================================
 
-        df = yf.download(
+        intraday = load_stock_data(
+
             symbol,
-            period="2d",
-            interval="15m",
-            auto_adjust=True,
-            progress=False
+
+            period="5d",
+
+            interval="15m"
         )
-
-        # ======================================
-        # FIX MULTI INDEX
-        # ======================================
-
-        if isinstance(df.columns, pd.MultiIndex):
-
-            df.columns = (
-                df.columns.get_level_values(0)
-            )
-
-        if df.empty:
-
-            return "NO DATA"
 
         # ======================================
         # VALIDATION
         # ======================================
 
-        if len(df) < 10:
+        if intraday.empty:
+
+            return "NO DATA"
+
+        if len(intraday) < 30:
+
+            return "NO DATA"
+
+        # ======================================
+        # ADD INDICATORS
+        # ======================================
+
+        intraday = add_indicators(
+            intraday
+        )
+
+        if intraday.empty:
+
+            return "NO DATA"
+
+        # ======================================
+        # LOAD DAILY DATA
+        # ======================================
+
+        daily = load_stock_data(
+            symbol,
+            period="3mo",
+            interval="1d"
+        )
+
+        daily = add_indicators(daily)
+
+        if daily.empty:
 
             return "NO DATA"
 
@@ -47,47 +71,78 @@ def morning_confirmation(symbol):
         # LATEST DATA
         # ======================================
 
-        latest = df.iloc[-1]
+        latest = intraday.iloc[-1]
 
-        current_price = latest["Close"]
+        previous = intraday.iloc[-2]
 
-        current_volume = latest["Volume"]
-
-        open_price = latest["Open"]
-
-        high_price = latest["High"]
-
-        low_price = latest["Low"]
+        daily_latest = daily.iloc[-1]
 
         # ======================================
-        # YESTERDAY CLOSE
+        # PRICE DATA
         # ======================================
 
-        daily = yf.download(
-            symbol,
-            period="5d",
-            interval="1d",
-            auto_adjust=True,
-            progress=False
+        current_price = float(
+            latest["Close"]
         )
 
-        if isinstance(daily.columns, pd.MultiIndex):
+        open_price = float(
+            latest["Open"]
+        )
 
-            daily.columns = (
-                daily.columns.get_level_values(0)
-            )
+        high_price = float(
+            latest["High"]
+        )
 
-        yesterday_close = (
+        low_price = float(
+            latest["Low"]
+        )
+
+        previous_close = float(
             daily.iloc[-2]["Close"]
         )
 
         # ======================================
-        # GAP %
+        # VOLUME DATA
+        # ======================================
+
+        current_volume = float(
+            latest["Volume"]
+        )
+
+        average_volume = float(
+            latest["VOL_MA20"]
+        )
+
+        # ======================================
+        # MOMENTUM DATA
+        # ======================================
+
+        rsi = float(
+            latest["RSI"]
+        )
+
+        macd = float(
+            latest["MACD"]
+        )
+
+        macd_signal = float(
+            latest["MACD_SIGNAL"]
+        )
+
+        adx = float(
+            latest["ADX"]
+        )
+
+        # ======================================
+        # GAP ANALYSIS
         # ======================================
 
         gap_percent = (
-            (open_price - yesterday_close)
-            / yesterday_close
+            (
+                open_price
+                - previous_close
+            )
+            / previous_close
         ) * 100
 
         # ======================================
@@ -95,29 +150,125 @@ def morning_confirmation(symbol):
         # ======================================
 
         candle_body = (
-            current_price - open_price
+            current_price
+            - open_price
         )
 
         candle_range = (
-            high_price - low_price
+            high_price
+            - low_price
         )
 
         upper_wick = (
-            high_price -
-            max(current_price, open_price)
+            high_price
+            - max(
+                current_price,
+                open_price
+            )
+        )
+
+        lower_wick = (
+            min(
+                current_price,
+                open_price
+            )
+            - low_price
         )
 
         # ======================================
-        # BUY CONDITIONS
+        # VOLUME CONFIRMATION
+        # ======================================
+
+        volume_ratio = (
+            current_volume
+            / average_volume
+        )
+
+        # ======================================
+        # TREND CONFIRMATION
+        # ======================================
+
+        bullish_trend = (
+
+            current_price
+            > daily_latest["EMA20"]
+
+            and
+
+            daily_latest["EMA20"]
+            > daily_latest["EMA50"]
+        )
+
+        # ======================================
+        # STRONG BUY
         # ======================================
 
         if (
-            current_price > yesterday_close
-            and candle_body > 0
-            and gap_percent < 8
-            and upper_wick < (
-                candle_range * 0.4
+
+            bullish_trend
+
+            and
+
+            current_price
+            > previous_close
+
+            and
+
+            candle_body > 0
+
+            and
+
+            volume_ratio >= 1.5
+
+            and
+
+            rsi >= 60
+
+            and
+
+            macd > macd_signal
+
+            and
+
+            adx >= 20
+
+            and
+
+            gap_percent < 8
+
+            and
+
+            upper_wick < (
+                candle_range * 0.35
             )
+        ):
+
+            return "STRONG BUY"
+
+        # ======================================
+        # BUY
+        # ======================================
+
+        if (
+
+            bullish_trend
+
+            and
+
+            current_price
+            > previous_close
+
+            and
+
+            candle_body > 0
+
+            and
+
+            rsi >= 50
+
+            and
+
+            gap_percent < 10
         ):
 
             return "BUY"
@@ -127,11 +278,39 @@ def morning_confirmation(symbol):
         # ======================================
 
         if (
-            gap_percent > 10
-            or candle_body < 0
+
+            gap_percent > 12
+
+            or
+
+            candle_body < 0
+
+            or
+
+            rsi < 45
+
+            or
+
+            current_price
+            < daily_latest["EMA20"]
         ):
 
             return "AVOID"
+
+        # ======================================
+        # WEAK MOMENTUM
+        # ======================================
+
+        if (
+
+            volume_ratio < 0.8
+
+            or
+
+            adx < 15
+        ):
+
+            return "WEAK"
 
         # ======================================
         # DEFAULT
@@ -142,7 +321,8 @@ def morning_confirmation(symbol):
     except Exception as e:
 
         print(
-            f"CONFIRMATION ERROR {symbol}: {e}"
+            f"❌ Confirmation Error "
+            f"{symbol}: {e}"
         )
 
         return "ERROR"

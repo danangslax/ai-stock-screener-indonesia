@@ -1,4 +1,0 @@
-Password database
-App-ku123@!!
-Project url : https://zfsqbzlyhfagprpcbism.supabase.co
-publish key : sb_publishable_Cg2-tBiTNGcwIbhEUDta-g_Xe9ipW1j

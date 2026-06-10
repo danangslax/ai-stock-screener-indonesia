@@ -1,30 +1,27 @@
+import sys
+from pathlib import Path
+
+sys.path.append(
+    str(Path(__file__).resolve().parent.parent)
+)
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
 from core.indicators import add_indicators
-from core.screener import run_screener
 from core.data_loader import load_stock_data
-from core.notifier import send_telegram_message
-from core.confirmation import morning_confirmation
-
-
+from core.market import get_market_status
+from core.trade_plan import generate_trade_plan
 
 from database.queries import (
-    save_screener_results,
     load_screener_history
 )
 
 from core.paper_trading import (
     create_trade,
-    close_trade,
     load_trades
 )
-
-from core.backtest import (
-    run_backtest
-)
-
 
 # ======================================
 # PAGE CONFIG
@@ -39,7 +36,9 @@ st.set_page_config(
 # TITLE
 # ======================================
 
-st.title("📈 AI Stock Screener Indonesia")
+st.title(
+    "📈 AI Stock Screener Indonesia"
+)
 
 # ======================================
 # WATCHLIST
@@ -58,10 +57,6 @@ with open("watchlist/idx_stocks.txt") as f:
 selected_watchlist = st.sidebar.selectbox(
     "Pilih saham",
     watchlist
-)
-
-st.sidebar.write(
-    f"Selected: {selected_watchlist}"
 )
 
 # ======================================
@@ -83,7 +78,9 @@ df = load_stock_data(symbol)
 
 if df.empty:
 
-    st.error("Data saham tidak ditemukan")
+    st.error(
+        "Data saham tidak ditemukan"
+    )
 
     st.stop()
 
@@ -95,7 +92,9 @@ df = add_indicators(df)
 
 if len(df) < 2:
 
-    st.warning("Data saham belum cukup")
+    st.warning(
+        "Data saham belum cukup"
+    )
 
     st.stop()
 
@@ -107,6 +106,7 @@ latest = df.iloc[-1]
 previous = df.iloc[-2]
 
 close_price = latest["Close"]
+
 volume = latest["Volume"]
 
 change_percent = (
@@ -120,19 +120,19 @@ change_percent = (
 
 st.subheader("📌 Stock Overview")
 
-colA, colB, colC = st.columns(3)
+col1, col2, col3 = st.columns(3)
 
-colA.metric(
+col1.metric(
     "Last Price",
     f"Rp {close_price:,.2f}"
 )
 
-colB.metric(
+col2.metric(
     "Volume",
     f"{int(volume):,}"
 )
 
-colC.metric(
+col3.metric(
     "Change %",
     f"{change_percent:.2f}%"
 )
@@ -141,7 +141,9 @@ colC.metric(
 # TECHNICAL INDICATORS
 # ======================================
 
-st.subheader("Technical Indicators")
+st.subheader(
+    "📊 Technical Indicators"
+)
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -183,7 +185,7 @@ fig.add_trace(
     )
 )
 
-# Bollinger Upper
+# Bollinger Bands
 fig.add_trace(
     go.Scatter(
         x=df.index,
@@ -192,7 +194,6 @@ fig.add_trace(
     )
 )
 
-# Bollinger Middle
 fig.add_trace(
     go.Scatter(
         x=df.index,
@@ -201,7 +202,6 @@ fig.add_trace(
     )
 )
 
-# Bollinger Lower
 fig.add_trace(
     go.Scatter(
         x=df.index,
@@ -224,7 +224,7 @@ st.plotly_chart(
 # HISTORICAL DATA
 # ======================================
 
-st.subheader("Historical Data")
+st.subheader("📜 Historical Data")
 
 st.dataframe(
     df.tail(20),
@@ -249,187 +249,102 @@ if st.button("🔄 Refresh Data"):
 
 st.header("📊 Market Status")
 
-ihsg = load_stock_data("^JKSE")
+market = get_market_status()
 
-if not ihsg.empty and len(ihsg) >= 2:
+if market["status"] == "BULLISH":
 
-    ihsg_latest = ihsg.iloc[-1]
-    ihsg_prev = ihsg.iloc[-2]
+    st.success(
+        f"IHSG Bullish ({market['change']}%)"
+    )
 
-    ihsg_change = (
-        (ihsg_latest["Close"] - ihsg_prev["Close"])
-        / ihsg_prev["Close"]
-    ) * 100
+elif market["status"] == "BEARISH":
 
-    if ihsg_change > 1:
+    st.error(
+        f"IHSG Bearish ({market['change']}%)"
+    )
 
-        st.success(
-            f"IHSG Bullish ({ihsg_change:.2f}%)"
-        )
+else:
 
-    elif ihsg_change < -1:
-
-        st.error(
-            f"IHSG Bearish ({ihsg_change:.2f}%)"
-        )
-
-    else:
-
-        st.warning(
-            f"IHSG Sideways ({ihsg_change:.2f}%)"
-        )
+    st.warning(
+        f"IHSG Sideways ({market['change']}%)"
+    )
 
 # ======================================
-# AI SCREENER
+# LATEST AI SCREENER
 # ======================================
 
 st.divider()
 
-st.header("🔥 AI Stock Screener")
-
-if st.button("Run Screener"):
-
-    with st.spinner("Scanning saham IDX..."):
-
-        screener_df = run_screener()
-
-    # ======================================
-    # EMPTY RESULT
-    # ======================================
-
-    if screener_df.empty:
-
-        st.warning(
-            "Tidak ada saham yang lolos filter"
-        )
-
-    else:
-
-        st.success("Screening selesai")
-
-        # ======================================
-        # SAVE DATABASE
-        # ======================================
-
-        save_screener_results(
-            screener_df
-        )
-
-        # ======================================
-        # TOP PICK
-        # ======================================
-
-        top_pick = screener_df.iloc[0]
-
-        st.subheader("🏆 Top Pick")
-
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric(
-            "Symbol",
-            top_pick["Symbol"]
-        )
-
-        col2.metric(
-            "Score",
-            top_pick["Score"]
-        )
-
-        col3.metric(
-            "RSI",
-            top_pick["RSI"]
-        )
-
-        # ======================================
-        # MORNING CONFIRMATION
-        # ======================================
-
-        confirmation = morning_confirmation(
-            top_pick["Symbol"]
-        )
-
-        st.subheader(
-            "☀️ Morning Confirmation"
-        )
-
-        if confirmation == "BUY":
-
-            st.success("BUY")
-
-        elif confirmation == "WATCH":
-
-            st.warning("WATCH")
-
-        elif confirmation == "AVOID":
-
-            st.error("AVOID")
-
-        else:
-
-            st.info(confirmation)
-
-        # ======================================
-        # TELEGRAM ALERT
-        # ======================================
-
-        message = f"""
-🔥 TOP PICK TODAY
-
-{top_pick["Symbol"]}
-
-Score: {top_pick["Score"]}
-RSI: {top_pick["RSI"]}
-
-Morning Confirmation: {confirmation}
-
-AI breakout detected
-"""
-
-        send_telegram_message(message)
-
-        # ======================================
-        # RESULT TABLE
-        # ======================================
-
-        st.dataframe(
-            screener_df,
-            use_container_width=True
-        )
-
-# ======================================
-# SCREENING HISTORY
-# ======================================
-
-st.divider()
-
-st.header("📜 Screening History")
+st.header("🔥 Latest AI Screener")
 
 history = load_screener_history()
 
 if history:
 
-    history_df = pd.DataFrame(history)
+    screener_df = pd.DataFrame(history)
 
-    st.dataframe(
-        history_df,
-        use_container_width=True
+    # ======================================
+    # TOP PICK
+    # ======================================
+
+    top_pick = screener_df.iloc[0]
+
+    st.subheader("🏆 Top Pick")
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Symbol",
+        top_pick["Symbol"]
     )
 
-else:
-
-    st.info(
-        "Belum ada history screening"
+    col2.metric(
+        "Score",
+        top_pick["Score"]
     )
-    
-# ======================================
-# PAPER TRADING
-# ======================================
 
-st.divider()
+    col3.metric(
+        "RSI",
+        top_pick["RSI"]
+    )
 
-st.header("💰 Paper Trading")
+    # ======================================
+    # TRADE PLAN
+    # ======================================
 
-if "top_pick" in locals():
+    trade_plan = generate_trade_plan(
+        top_pick["Price"]
+    )
+
+    st.subheader("📌 Trade Plan")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Entry",
+        trade_plan["entry"]
+    )
+
+    col2.metric(
+        "Stop Loss",
+        trade_plan["stop_loss"]
+    )
+
+    col3.metric(
+        "Take Profit",
+        trade_plan["take_profit"]
+    )
+
+    col4.metric(
+        "Risk Reward",
+        trade_plan["risk_reward"]
+    )
+
+    # ======================================
+    # PAPER TRADING
+    # ======================================
+
+    st.subheader("💰 Paper Trading")
 
     if st.button("📈 Buy Top Pick"):
 
@@ -445,9 +360,30 @@ if "top_pick" in locals():
             "Paper trade berhasil dibuat"
         )
 
+    # ======================================
+    # RESULT TABLE
+    # ======================================
+
+    st.subheader("📊 Latest Screening Results")
+
+    st.dataframe(
+        screener_df,
+        use_container_width=True
+    )
+
+else:
+
+    st.info(
+        "Belum ada hasil screening"
+    )
+
 # ======================================
-# LOAD TRADES
+# PAPER TRADES
 # ======================================
+
+st.divider()
+
+st.header("📒 Paper Trading History")
 
 trades = load_trades()
 
@@ -458,4 +394,10 @@ if trades:
     st.dataframe(
         trades_df,
         use_container_width=True
+    )
+
+else:
+
+    st.info(
+        "Belum ada paper trade"
     )

@@ -1,15 +1,26 @@
-name: Morning Confirmation
+name: Trade Audit
 
 on:
 
   # ======================================
   # SCHEDULE
-  # 09:20 WIB = 02:20 UTC
+  #
+  # WIB SCHEDULE:
+  #
+  # 08:00 WIB = 01:00 UTC
+  # 22:00 WIB = 15:00 UTC
+  # 01:00 WIB = 18:00 UTC
+  #
   # Monday - Friday
   # ======================================
 
   schedule:
-    - cron: '20 2 * * 1-5'
+
+    - cron: '0 1 * * 1-5'
+
+    - cron: '0 15 * * 1-5'
+
+    - cron: '0 18 * * 1-5'
 
   # ======================================
   # MANUAL RUN
@@ -23,7 +34,7 @@ on:
 
 jobs:
 
-  run-confirmation:
+  run-trade-audit:
 
     runs-on: ubuntu-latest
 
@@ -66,10 +77,10 @@ jobs:
           pip install -r requirements.txt
 
       # ======================================
-      # RUN MORNING CONFIRMATION
+      # RUN TRADE AUDIT
       # ======================================
 
-      - name: Run Morning Confirmation
+      - name: Run Trade Audit
 
         env:
 
@@ -83,4 +94,4 @@ jobs:
 
         run: |
 
-          python runners/morning_confirmation_runner.py
+          python runners/trade_audit_runner.py

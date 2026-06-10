@@ -5,88 +5,341 @@ from database.db import supabase
 # ======================================
 
 def create_trade(
+
     symbol,
+
     buy_price,
-    quantity=1
+
+    quantity=1,
+
+    stop_loss=None,
+
+    take_profit=None
 ):
 
-    stop_loss = buy_price * 0.95
-    take_profit = buy_price * 1.10
+    try:
 
-    data = {
-        "symbol": symbol,
-        "buy_price": buy_price,
-        "quantity": quantity,
-        "status": "OPEN",
-        "stop_loss": stop_loss,
-        "take_profit": take_profit,
-        "profit_loss": 0
-    }
+        # ======================================
+        # VALIDATION
+        # ======================================
 
-    response = supabase.table(
-        "paper_trades"
-    ).insert(data).execute()
+        if buy_price <= 0:
 
-    return response
+            raise ValueError(
+                "Invalid buy price"
+            )
+
+        if quantity <= 0:
+
+            raise ValueError(
+                "Invalid quantity"
+            )
+
+        # ======================================
+        # CHECK DUPLICATE OPEN TRADE
+        # ======================================
+
+        existing = supabase.table(
+            "paper_trades"
+        ).select("*").eq(
+            "symbol",
+            symbol
+        ).eq(
+            "status",
+            "OPEN"
+        ).execute()
+
+        if existing.data:
+
+            print(
+                f"⚠️ Open trade already exists "
+                f"for {symbol}"
+            )
+
+            return None
+
+        # ======================================
+        # DEFAULT RISK MANAGEMENT
+        # ======================================
+
+        if stop_loss is None:
+
+            stop_loss = round(
+                buy_price * 0.95,
+                2
+            )
+
+        if take_profit is None:
+
+            take_profit = round(
+                buy_price * 1.10,
+                2
+            )
+
+        # ======================================
+        # TRADE DATA
+        # ======================================
+
+        data = {
+
+            "symbol": symbol,
+
+            "buy_price": round(
+                buy_price,
+                2
+            ),
+
+            "quantity": quantity,
+
+            "status": "OPEN",
+
+            "stop_loss": stop_loss,
+
+            "take_profit": take_profit,
+
+            "profit_loss": 0,
+
+            "close_reason": None
+        }
+
+        # ======================================
+        # INSERT DATABASE
+        # ======================================
+
+        response = supabase.table(
+            "paper_trades"
+        ).insert(data).execute()
+
+        print(
+            f"✅ Trade created: {symbol}"
+        )
+
+        return response
+
+    except Exception as e:
+
+        print(
+            f"❌ Create Trade Error: {e}"
+        )
+
+        return None
+
 
 # ======================================
 # CLOSE TRADE
 # ======================================
 
 def close_trade(
+
     trade_id,
-    sell_price
+
+    sell_price,
+
+    close_reason="MANUAL"
 ):
 
-    trade = supabase.table(
-        "paper_trades"
-    ).select("*").eq(
-        "id",
-        trade_id
-    ).execute()
+    try:
 
-    if not trade.data:
-        return
+        # ======================================
+        # LOAD TRADE
+        # ======================================
 
-    trade_data = trade.data[0]
+        trade = supabase.table(
+            "paper_trades"
+        ).select("*").eq(
+            "id",
+            trade_id
+        ).execute()
 
-    buy_price = float(
-        trade_data["buy_price"]
-    )
+        if not trade.data:
 
-    quantity = int(
-        trade_data["quantity"]
-    )
+            print(
+                "❌ Trade not found"
+            )
 
-    pnl = (
-        sell_price - buy_price
-    ) * quantity
+            return None
 
-    response = supabase.table(
-        "paper_trades"
-    ).update({
-        "sell_price": sell_price,
-        "profit_loss": pnl,
-        "status": "CLOSED"
-    }).eq(
-        "id",
-        trade_id
-    ).execute()
+        trade_data = trade.data[0]
 
-    return response
+        # ======================================
+        # VALIDATION
+        # ======================================
+
+        if trade_data["status"] == "CLOSED":
+
+            print(
+                "⚠️ Trade already closed"
+            )
+
+            return None
+
+        # ======================================
+        # CALCULATE PNL
+        # ======================================
+
+        buy_price = float(
+            trade_data["buy_price"]
+        )
+
+        quantity = int(
+            trade_data["quantity"]
+        )
+
+        pnl = (
+            sell_price - buy_price
+        ) * quantity
+
+        pnl_percent = (
+            (
+                sell_price - buy_price
+            )
+            / buy_price
+        ) * 100
+
+        # ======================================
+        # WIN / LOSS
+        # ======================================
+
+        if pnl > 0:
+
+            result = "WIN"
+
+        elif pnl < 0:
+
+            result = "LOSS"
+
+        else:
+
+            result = "BREAKEVEN"
+
+        # ======================================
+        # UPDATE DATABASE
+        # ======================================
+
+        response = supabase.table(
+            "paper_trades"
+        ).update({
+
+            "sell_price": round(
+                sell_price,
+                2
+            ),
+
+            "profit_loss": round(
+                pnl,
+                2
+            ),
+
+            "profit_loss_percent": round(
+                pnl_percent,
+                2
+            ),
+
+            "status": "CLOSED",
+
+            "result": result,
+
+            "close_reason": close_reason
+        }).eq(
+            "id",
+            trade_id
+        ).execute()
+
+        print(
+            f"✅ Trade closed: "
+            f"{trade_data['symbol']}"
+        )
+
+        return response
+
+    except Exception as e:
+
+        print(
+            f"❌ Close Trade Error: {e}"
+        )
+
+        return None
+
 
 # ======================================
-# LOAD TRADES
+# LOAD ALL TRADES
 # ======================================
 
 def load_trades():
 
-    response = supabase.table(
-        "paper_trades"
-    ).select("*").order(
-        "created_at",
-        desc=True
-    ).execute()
+    try:
 
-    return response.data
+        response = supabase.table(
+            "paper_trades"
+        ).select("*").order(
+            "created_at",
+            desc=True
+        ).execute()
 
+        return response.data
+
+    except Exception as e:
+
+        print(
+            f"❌ Load Trades Error: {e}"
+        )
+
+        return []
+
+
+# ======================================
+# LOAD OPEN TRADES
+# ======================================
+
+def load_open_trades():
+
+    try:
+
+        response = supabase.table(
+            "paper_trades"
+        ).select("*").eq(
+            "status",
+            "OPEN"
+        ).order(
+            "created_at",
+            desc=True
+        ).execute()
+
+        return response.data
+
+    except Exception as e:
+
+        print(
+            f"❌ Load Open Trades Error: {e}"
+        )
+
+        return []
+
+
+# ======================================
+# LOAD CLOSED TRADES
+# ======================================
+
+def load_closed_trades():
+
+    try:
+
+        response = supabase.table(
+            "paper_trades"
+        ).select("*").eq(
+            "status",
+            "CLOSED"
+        ).order(
+            "created_at",
+            desc=True
+        ).execute()
+
+        return response.data
+
+    except Exception as e:
+
+        print(
+            f"❌ Load Closed Trades Error: {e}"
+        )
+
+        return []
