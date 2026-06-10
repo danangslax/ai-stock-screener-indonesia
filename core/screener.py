@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 
 from core.data_loader import (
@@ -17,12 +19,19 @@ from core.market import (
 )
 
 # ======================================
-# LOAD WATCHLIST
+# BASE DIRECTORY
 # ======================================
 
-from pathlib import Path
+BASE_DIR = (
+    Path(__file__)
+    .resolve()
+    .parent
+    .parent
+)
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# ======================================
+# WATCHLIST PATH
+# ======================================
 
 WATCHLIST_PATH = (
     BASE_DIR
@@ -30,7 +39,18 @@ WATCHLIST_PATH = (
     / "idx_stocks.txt"
 )
 
-with open(WATCHLIST_PATH) as f:
+# ======================================
+# LOAD WATCHLIST
+# ======================================
+
+with open(
+
+    WATCHLIST_PATH,
+
+    "r",
+
+    encoding="utf-8"
+) as f:
 
     IDX_STOCKS = [
 
@@ -42,7 +62,8 @@ with open(WATCHLIST_PATH) as f:
     ]
 
 print(
-    f"✅ Total saham: {len(IDX_STOCKS)}"
+    f"✅ Total saham: "
+    f"{len(IDX_STOCKS)}"
 )
 
 # ======================================
@@ -60,7 +81,8 @@ def run_screener():
         market = get_market_status()
 
         print(
-            f"🌍 Market: {market['status']}"
+            f"🌍 Market Status: "
+            f"{market['status']}"
         )
 
         # ======================================
@@ -92,8 +114,11 @@ def run_screener():
                 # ======================================
 
                 df = load_stock_data(
+
                     symbol,
+
                     period="6mo",
+
                     interval="1d"
                 )
 
@@ -122,6 +147,46 @@ def run_screener():
                 latest = df.iloc[-1]
 
                 # ======================================
+                # REQUIRED COLUMNS
+                # ======================================
+
+                required_columns = [
+
+                    "RSI",
+
+                    "ATR",
+
+                    "ADX",
+
+                    "EMA20",
+
+                    "EMA50",
+
+                    "VOLATILITY",
+
+                    "VOL_MA20"
+                ]
+
+                missing_columns = [
+
+                    col
+
+                    for col in required_columns
+
+                    if col not in df.columns
+                ]
+
+                if missing_columns:
+
+                    print(
+                        f"⚠️ Missing columns "
+                        f"{symbol}: "
+                        f"{missing_columns}"
+                    )
+
+                    continue
+
+                # ======================================
                 # BASIC DATA
                 # ======================================
 
@@ -145,9 +210,46 @@ def run_screener():
                     latest["ATR"]
                 )
 
+                adx = float(
+                    latest["ADX"]
+                )
+
                 volatility = float(
                     latest["VOLATILITY"]
                 )
+
+                ema20 = float(
+                    latest["EMA20"]
+                )
+
+                ema50 = float(
+                    latest["EMA50"]
+                )
+
+                relative_volume = round(
+
+                    volume
+                    /
+                    latest["VOL_MA20"],
+
+                    2
+                )
+
+                # ======================================
+                # NAN VALIDATION
+                # ======================================
+
+                if pd.isna(atr):
+
+                    continue
+
+                if pd.isna(adx):
+
+                    continue
+
+                if pd.isna(rsi):
+
+                    continue
 
                 # ======================================
                 # BASIC FILTER
@@ -170,6 +272,22 @@ def run_screener():
 
                 # Minimum transaction value
                 if value < 15_000_000_000:
+
+                    continue
+
+                # ======================================
+                # TREND FILTER
+                # ======================================
+
+                if ema20 < ema50:
+
+                    continue
+
+                # ======================================
+                # ADX FILTER
+                # ======================================
+
+                if adx < 20:
 
                     continue
 
@@ -203,7 +321,6 @@ def run_screener():
                     == "STRONG BEARISH"
                 ):
 
-                    # only strongest setups
                     if rsi < 65:
 
                         continue
@@ -216,14 +333,6 @@ def run_screener():
                     latest,
                     df
                 )
-
-                # ======================================
-                # MINIMUM SCORE
-                # ======================================
-
-                if score < 70:
-
-                    continue
 
                 # ======================================
                 # TRADE PLAN
@@ -239,16 +348,48 @@ def run_screener():
                     2
                 )
 
+                risk = (
+                    price - stop_loss
+                )
+
+                if risk <= 0:
+
+                    continue
+
                 risk_reward = round(
+
                     (
                         take_profit - price
                     )
                     /
-                    (
-                        price - stop_loss
-                    ),
+                    risk,
+
                     2
                 )
+
+                # ======================================
+                # RISK REWARD BONUS
+                # ======================================
+
+                if risk_reward >= 2:
+
+                    score += 5
+
+                # ======================================
+                # SCORE LIMIT
+                # ======================================
+
+                if score > 100:
+
+                    score = 100
+
+                # ======================================
+                # MINIMUM SCORE
+                # ======================================
+
+                if score < 70:
+
+                    continue
 
                 # ======================================
                 # SAVE RESULT
@@ -267,6 +408,10 @@ def run_screener():
                         volume
                     ),
 
+                    "Relative_Volume": (
+                        relative_volume
+                    ),
+
                     "Value": int(
                         value
                     ),
@@ -282,8 +427,13 @@ def run_screener():
                     ),
 
                     "ADX": round(
-                        latest["ADX"],
+                        adx,
                         2
+                    ),
+
+                    "Volatility": round(
+                        volatility,
+                        4
                     ),
 
                     "MA5": round(
@@ -297,12 +447,12 @@ def run_screener():
                     ),
 
                     "EMA20": round(
-                        latest["EMA20"],
+                        ema20,
                         2
                     ),
 
                     "EMA50": round(
-                        latest["EMA50"],
+                        ema50,
                         2
                     ),
 
@@ -314,13 +464,16 @@ def run_screener():
 
                     "Risk_Reward": risk_reward,
 
-                    "Market": market["status"]
+                    "Market": (
+                        market["status"]
+                    )
                 })
 
             except Exception as e:
 
                 print(
-                    f"❌ ERROR {symbol}: {e}"
+                    f"❌ ERROR "
+                    f"{symbol}: {e}"
                 )
 
         # ======================================
@@ -332,25 +485,48 @@ def run_screener():
         )
 
         # ======================================
+        # EMPTY RESULT
+        # ======================================
+
+        if result_df.empty:
+
+            print(
+                "⚠️ No stocks passed "
+                "screening"
+            )
+
+            return pd.DataFrame()
+
+        # ======================================
         # SORTING
         # ======================================
 
-        if not result_df.empty:
+        result_df = (
 
-            result_df = (
-                result_df
-                .sort_values(
-                    by="Score",
-                    ascending=False
-                )
-                .reset_index(drop=True)
+            result_df
+
+            .sort_values(
+
+                by=[
+
+                    "Score",
+
+                    "Relative_Volume"
+                ],
+
+                ascending=False
             )
 
-            # ======================================
-            # TOP RESULTS
-            # ======================================
+            .reset_index(
+                drop=True
+            )
+        )
 
-            result_df = result_df.head(50)
+        # ======================================
+        # TOP RESULTS
+        # ======================================
+
+        result_df = result_df.head(50)
 
         print(
             f"✅ Total results: "

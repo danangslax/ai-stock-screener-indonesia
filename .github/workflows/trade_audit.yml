@@ -1,5 +1,9 @@
 ﻿name: Trade Audit
 
+# ======================================
+# TRIGGERS
+# ======================================
+
 on:
 
   # ======================================
@@ -39,6 +43,14 @@ jobs:
     runs-on: ubuntu-latest
 
     timeout-minutes: 30
+
+    # ======================================
+    # NODE.JS 24
+    # ======================================
+
+    env:
+
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
 
@@ -84,8 +96,6 @@ jobs:
 
         env:
 
-          PYTHONPATH: ${{ github.workspace }}
-
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
 
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -96,4 +106,4 @@ jobs:
 
         run: |
 
-          python runners/trade_audit_runner.py
+          python -m runners.trade_audit_runner

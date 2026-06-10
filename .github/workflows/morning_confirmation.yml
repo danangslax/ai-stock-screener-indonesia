@@ -1,14 +1,20 @@
 ﻿name: Morning Confirmation
 
+# ======================================
+# TRIGGERS
+# ======================================
+
 on:
 
   # ======================================
   # SCHEDULE
+  #
   # 09:20 WIB = 02:20 UTC
   # Monday - Friday
   # ======================================
 
   schedule:
+
     - cron: '20 2 * * 1-5'
 
   # ======================================
@@ -28,6 +34,14 @@ jobs:
     runs-on: ubuntu-latest
 
     timeout-minutes: 30
+
+    # ======================================
+    # NODE.JS 24
+    # ======================================
+
+    env:
+
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
 
@@ -73,8 +87,6 @@ jobs:
 
         env:
 
-          PYTHONPATH: ${{ github.workspace }}
-
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
 
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -85,4 +97,4 @@ jobs:
 
         run: |
 
-          python runners/morning_confirmation_runner.py
+          python -m runners.morning_confirmation_runner

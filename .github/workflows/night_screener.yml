@@ -1,25 +1,31 @@
 ﻿name: Night Screener
 
+# ======================================
+# TRIGGERS
+# ======================================
+
 on:
 
-  # ======================================    
+  # ======================================
   # SCHEDULE
+  #
   # 19:00 WIB = 12:00 UTC
   # Monday - Friday
-  # ======================================    
+  # ======================================
 
   schedule:
+
     - cron: '0 12 * * 1-5'
 
-  # ======================================    
+  # ======================================
   # MANUAL RUN
-  # ======================================    
+  # ======================================
 
   workflow_dispatch:
 
-# ======================================      
+# ======================================
 # JOBS
-# ======================================      
+# ======================================
 
 jobs:
 
@@ -28,6 +34,14 @@ jobs:
     runs-on: ubuntu-latest
 
     timeout-minutes: 30
+
+    # ======================================
+    # NODE.JS 24
+    # ======================================
+
+    env:
+
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
 
@@ -61,9 +75,9 @@ jobs:
 
         run: |
 
-          python -m pip install --upgrade pip 
+          python -m pip install --upgrade pip
 
-          pip install -r requirements.txt     
+          pip install -r requirements.txt
 
       # ======================================
       # RUN AI SCREENER
@@ -72,8 +86,6 @@ jobs:
       - name: Run AI Screener
 
         env:
-
-          PYTHONPATH: ${{ github.workspace }}
 
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
 
@@ -85,4 +97,4 @@ jobs:
 
         run: |
 
-          python runners/auto_screener.py
+          python -m runners.auto_screener
