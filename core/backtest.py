@@ -1,19 +1,35 @@
 import pandas as pd
-import yfinance as yf
 
-from backtesting import Backtest
-from backtesting import Strategy
+from backtesting import (
+    Backtest,
+    Strategy
+)
 
-from core.indicators import add_indicators
+from core.data_loader import (
+    load_stock_data
+)
+
+from core.indicators import (
+    add_indicators
+)
 
 # ======================================
-# STRATEGY
+# SWING STRATEGY
 # ======================================
 
 class SwingStrategy(Strategy):
 
+    # ======================================
+    # INIT
+    # ======================================
+
     def init(self):
+
         pass
+
+    # ======================================
+    # NEXT BAR
+    # ======================================
 
     def next(self):
 
@@ -29,16 +45,57 @@ class SwingStrategy(Strategy):
 
         vol_ma20 = self.data.VOL_MA20[-1]
 
+        adx = self.data.ADX[-1]
+
         # ======================================
         # BUY CONDITION
         # ======================================
 
-        if (
+        bullish_trend = (
+
             price > ma5
-            and price > ma20
-            and ma5 > ma20
-            and 50 <= rsi <= 75
-            and volume > (1.5 * vol_ma20)
+
+            and
+
+            price > ma20
+
+            and
+
+            ma5 > ma20
+        )
+
+        bullish_momentum = (
+
+            50 <= rsi <= 75
+        )
+
+        bullish_volume = (
+
+            volume > (
+                1.5 * vol_ma20
+            )
+        )
+
+        strong_trend = (
+
+            adx > 20
+        )
+
+        if (
+
+            bullish_trend
+
+            and
+
+            bullish_momentum
+
+            and
+
+            bullish_volume
+
+            and
+
+            strong_trend
         ):
 
             if not self.position:
@@ -51,14 +108,40 @@ class SwingStrategy(Strategy):
 
         if self.position:
 
-            # stop loss
-            if price < (self.position.entry_price * 0.95):
+            # ======================================
+            # STOP LOSS
+            # ======================================
+
+            if (
+
+                price
+
+                <
+
+                (
+                    self.position
+                    .entry_price
+                    * 0.95
+                )
+            ):
 
                 self.position.close()
 
-            # take profit
-            elif price > (
-                self.position.entry_price * 1.10
+            # ======================================
+            # TAKE PROFIT
+            # ======================================
+
+            elif (
+
+                price
+
+                >
+
+                (
+                    self.position
+                    .entry_price
+                    * 1.10
+                )
             ):
 
                 self.position.close()
@@ -67,33 +150,49 @@ class SwingStrategy(Strategy):
 # RUN BACKTEST
 # ======================================
 
-def run_backtest(symbol):
+def run_backtest(
+
+    symbol,
+
+    period="1y",
+
+    interval="1d",
+
+    cash=100_000_000
+):
 
     try:
 
         # ======================================
-        # DOWNLOAD DATA
+        # LOAD DATA
         # ======================================
 
-        df = yf.download(
+        df = load_stock_data(
+
             symbol,
-            period="1y",
-            interval="1d",
-            auto_adjust=True,
-            progress=False
+
+            period=period,
+
+            interval=interval
         )
 
         # ======================================
-        # FIX MULTI INDEX
+        # VALIDATION
         # ======================================
 
-        if isinstance(df.columns, pd.MultiIndex):
+        if df.empty:
 
-            df.columns = (
-                df.columns.get_level_values(0)
+            print(
+                f"Empty data: {symbol}"
             )
 
-        if df.empty:
+            return None
+
+        if len(df) < 60:
+
+            print(
+                f"Insufficient data: {symbol}"
+            )
 
             return None
 
@@ -104,15 +203,40 @@ def run_backtest(symbol):
         df = add_indicators(df)
 
         # ======================================
-        # BACKTEST
+        # CLEAN DATA
+        # ======================================
+
+        df = df.dropna()
+
+        if df.empty:
+
+            print(
+                f"Indicator data empty: "
+                f"{symbol}"
+            )
+
+            return None
+
+        # ======================================
+        # BACKTEST ENGINE
         # ======================================
 
         bt = Backtest(
+
             df,
+
             SwingStrategy,
-            cash=100_000_000,
-            commission=0.0015
+
+            cash=cash,
+
+            commission=0.0015,
+
+            exclusive_orders=True
         )
+
+        # ======================================
+        # RUN BACKTEST
+        # ======================================
 
         stats = bt.run()
 
@@ -121,7 +245,9 @@ def run_backtest(symbol):
     except Exception as e:
 
         print(
-            f"BACKTEST ERROR {symbol}: {e}"
+
+            f"BACKTEST ERROR "
+            f"{symbol}: {e}"
         )
 
         return None

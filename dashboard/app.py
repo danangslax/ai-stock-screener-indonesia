@@ -50,9 +50,13 @@ from core.paper_trading import (
 from core.analytics import (
 
     calculate_portfolio_metrics,
-
     generate_equity_curve
 )
+
+from core.backtest import (
+    run_backtest
+)
+
 
 # ======================================
 # PAGE CONFIG
@@ -836,6 +840,238 @@ if not equity_df.empty:
 
         use_container_width=True
     )
+
+# ======================================
+# BACKTEST DASHBOARD
+# ======================================
+
+st.divider()
+
+st.header(
+    "🧪 Strategy Backtest"
+)
+
+# ======================================
+# BACKTEST INPUT
+# ======================================
+
+col1, col2 = st.columns(2)
+
+backtest_symbol = col1.text_input(
+
+    "Backtest Symbol",
+
+    value=symbol
+)
+
+backtest_period = col2.selectbox(
+
+    "Backtest Period",
+
+    [
+
+        "6mo",
+
+        "1y",
+
+        "2y",
+
+        "5y"
+    ]
+)
+
+# ======================================
+# RUN BACKTEST
+# ======================================
+
+if st.button(
+    "🚀 Run Backtest"
+):
+
+    with st.spinner(
+        "Running backtest..."
+    ):
+
+        stats = run_backtest(
+
+            backtest_symbol,
+
+            period=backtest_period
+        )
+
+    # ======================================
+    # VALIDATION
+    # ======================================
+
+    if stats is None:
+
+        st.error(
+            "Backtest gagal"
+        )
+
+    else:
+
+        st.success(
+            "Backtest selesai"
+        )
+
+        # ======================================
+        # METRICS
+        # ======================================
+
+        col1, col2, col3, col4 = (
+            st.columns(4)
+        )
+
+        col1.metric(
+
+            "Return %",
+
+            round(
+                stats["Return [%]"],
+                2
+            )
+        )
+
+        col2.metric(
+
+            "Win Rate %",
+
+            round(
+                stats["Win Rate [%]"],
+                2
+            )
+        )
+
+        col3.metric(
+
+            "Max Drawdown %",
+
+            round(
+                stats["Max. Drawdown [%]"],
+                2
+            )
+        )
+
+        col4.metric(
+
+            "Total Trades",
+
+            int(
+                stats["# Trades"]
+            )
+        )
+
+        # ======================================
+        # SECOND ROW
+        # ======================================
+
+        col1, col2, col3, col4 = (
+            st.columns(4)
+        )
+
+        col1.metric(
+
+            "Sharpe Ratio",
+
+            round(
+                stats["Sharpe Ratio"],
+                2
+            )
+        )
+
+        col2.metric(
+
+            "Profit Factor",
+
+            round(
+                stats["Profit Factor"],
+                2
+            )
+        )
+
+        col3.metric(
+
+            "Expectancy",
+
+            round(
+                stats["Expectancy [%]"],
+                2
+            )
+        )
+
+        col4.metric(
+
+            "SQN",
+
+            round(
+                stats["SQN"],
+                2
+            )
+        )
+
+        # ======================================
+        # EQUITY CURVE
+        # ======================================
+
+        st.subheader(
+            "📈 Backtest Equity Curve"
+        )
+
+        equity_curve = (
+            stats["_equity_curve"]
+        )
+
+        equity_fig = go.Figure()
+
+        equity_fig.add_trace(
+
+            go.Scatter(
+
+                x=equity_curve.index,
+
+                y=equity_curve["Equity"],
+
+                mode="lines",
+
+                name="Equity"
+            )
+        )
+
+        equity_fig.update_layout(
+
+            height=400,
+
+            xaxis_title="Date",
+
+            yaxis_title="Equity"
+        )
+
+        st.plotly_chart(
+
+            equity_fig,
+
+            use_container_width=True
+        )
+
+        # ======================================
+        # TRADES
+        # ======================================
+
+        st.subheader(
+            "📋 Trade History"
+        )
+
+        trades_df = stats[
+            "_trades"
+        ]
+
+        st.dataframe(
+
+            trades_df,
+
+            use_container_width=True
+        )
 
 # ======================================
 # PAPER TRADING HISTORY
