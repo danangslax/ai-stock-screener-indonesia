@@ -480,7 +480,7 @@ def run_screener():
                 # MINIMUM SCORE
                 # ======================================
 
-                if score < 70:
+                if score < 60:
 
                     continue
 

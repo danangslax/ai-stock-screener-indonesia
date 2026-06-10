@@ -133,7 +133,7 @@ def analyze_daily_timeframe(df):
         # ======================================
 
         # RSI bullish
-        if rsi >= 55:
+        if rsi >= 50:
 
             score += 10
 
@@ -146,11 +146,11 @@ def analyze_daily_timeframe(df):
         # TREND STRENGTH
         # ======================================
 
-        if adx >= 20:
+        if adx >= 18:
 
             score += 10
 
-        if adx >= 30:
+        if adx >= 35:
 
             score += 5
 

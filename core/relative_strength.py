@@ -135,7 +135,7 @@ def calculate_relative_strength(
                 "MARKET LEADER"
             )
 
-        elif rs_ratio >= 1.2:
+        elif rs_ratio >= 1.0:
 
             status = (
                 "STRONG"
