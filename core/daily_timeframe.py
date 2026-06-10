@@ -190,13 +190,13 @@ def analyze_daily_timeframe(df):
         # TREND STATUS
         # ======================================
 
-        if score >= 80:
+        if score >= 75:
 
             trend_status = (
                 "STRONG BULLISH"
             )
 
-        elif score >= 65:
+        elif score >= 60:
 
             trend_status = (
                 "BULLISH"

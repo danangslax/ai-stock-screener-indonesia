@@ -57,6 +57,10 @@ from core.backtest import (
     run_backtest
 )
 
+from core.sector_strength import (
+    analyze_sector_strength
+)
+
 
 # ======================================
 # PAGE CONFIG
@@ -839,6 +843,135 @@ if not equity_df.empty:
         equity_fig,
 
         use_container_width=True
+    )
+
+# ======================================
+# SECTOR STRENGTH
+# ======================================
+
+st.divider()
+
+st.header(
+    "🏭 Sector Strength Ranking"
+)
+
+# ======================================
+# LOAD SECTOR DATA
+# ======================================
+
+with st.spinner(
+    "Analyzing sectors..."
+):
+
+    sector_df = (
+        analyze_sector_strength()
+    )
+
+# ======================================
+# VALIDATION
+# ======================================
+
+if not sector_df.empty:
+
+    # ======================================
+    # TOP SECTOR
+    # ======================================
+
+    top_sector = sector_df.iloc[0]
+
+    st.subheader(
+        "🔥 Strongest Sector"
+    )
+
+    col1, col2, col3, col4 = (
+        st.columns(4)
+    )
+
+    col1.metric(
+
+        "Sector",
+
+        top_sector["Sector"]
+    )
+
+    col2.metric(
+
+        "Score",
+
+        top_sector["Score"]
+    )
+
+    col3.metric(
+
+        "Leader",
+
+        top_sector["Leader"]
+    )
+
+    col4.metric(
+
+        "Bullish %",
+
+        f"{top_sector['Bullish_%']}%"
+    )
+
+    # ======================================
+    # SECTOR TABLE
+    # ======================================
+
+    st.subheader(
+        "📊 Sector Ranking"
+    )
+
+    st.dataframe(
+
+        sector_df,
+
+        use_container_width=True
+    )
+
+    # ======================================
+    # CHART
+    # ======================================
+
+    st.subheader(
+        "📈 Sector Strength Chart"
+    )
+
+    sector_fig = go.Figure()
+
+    sector_fig.add_trace(
+
+        go.Bar(
+
+            x=sector_df["Sector"],
+
+            y=sector_df["Score"],
+
+            name="Sector Score"
+        )
+    )
+
+    sector_fig.update_layout(
+
+        height=500,
+
+        xaxis_title="Sector",
+
+        yaxis_title="Score"
+    )
+
+    st.plotly_chart(
+
+        sector_fig,
+
+        use_container_width=True
+    )
+
+else:
+
+    st.warning(
+        "Sector data not available"
     )
 
 # ======================================
