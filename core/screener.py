@@ -20,7 +20,17 @@ from core.market import (
 # LOAD WATCHLIST
 # ======================================
 
-with open("watchlist/idx_stocks.txt") as f:
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+WATCHLIST_PATH = (
+    BASE_DIR
+    / "watchlist"
+    / "idx_stocks.txt"
+)
+
+with open(WATCHLIST_PATH) as f:
 
     IDX_STOCKS = [
 
