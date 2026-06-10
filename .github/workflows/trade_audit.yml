@@ -1,4 +1,4 @@
-name: Trade Audit
+﻿name: Trade Audit
 
 on:
 
@@ -83,6 +83,8 @@ jobs:
       - name: Run Trade Audit
 
         env:
+
+          PYTHONPATH: ${{ github.workspace }}
 
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
 
