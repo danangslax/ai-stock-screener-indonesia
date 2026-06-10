@@ -61,6 +61,25 @@ from core.sector_strength import (
     analyze_sector_strength
 )
 
+from core.market_breadth import (
+    analyze_market_breadth
+)
+
+# ======================================
+# LOAD WATCHLIST
+# ======================================
+
+with open("watchlist/idx_stocks.txt") as f:
+
+    IDX_STOCKS = [
+
+        line.strip()
+
+        for line in f
+
+        if line.strip()
+    ]
+
 
 # ======================================
 # PAGE CONFIG
@@ -854,6 +873,202 @@ st.divider()
 st.header(
     "🏭 Sector Strength Ranking"
 )
+
+# ======================================
+# MARKET BREADTH
+# ======================================
+
+st.divider()
+
+st.header(
+    "🌍 Market Breadth Analysis"
+)
+
+# ======================================
+# LOAD MARKET BREADTH
+# ======================================
+
+with st.spinner(
+    "Analyzing market breadth..."
+):
+
+    breadth = (
+        analyze_market_breadth(
+            IDX_STOCKS[:150]
+        )
+    )
+
+# ======================================
+# VALIDATION
+# ======================================
+
+if breadth:
+
+    # ======================================
+    # STATUS
+    # ======================================
+
+    if (
+
+        breadth["status"]
+
+        ==
+
+        "STRONG BULL MARKET"
+    ):
+
+        st.success(
+
+            f"🔥 {breadth['status']}"
+        )
+
+    elif (
+
+        breadth["status"]
+
+        ==
+
+        "BULLISH"
+    ):
+
+        st.info(
+
+            f"📈 {breadth['status']}"
+        )
+
+    elif (
+
+        breadth["status"]
+
+        ==
+
+        "NEUTRAL"
+    ):
+
+        st.warning(
+
+            f"⚠️ {breadth['status']}"
+        )
+
+    else:
+
+        st.error(
+
+            f"❌ {breadth['status']}"
+        )
+
+    # ======================================
+    # METRICS
+    # ======================================
+
+    col1, col2, col3, col4 = (
+        st.columns(4)
+    )
+
+    col1.metric(
+
+        "Health Score",
+
+        breadth[
+            "health_score"
+        ]
+    )
+
+    col2.metric(
+
+        "% Above MA20",
+
+        f"{breadth['above_ma20_pct']}%"
+    )
+
+    col3.metric(
+
+        "% Bullish RSI",
+
+        f"{breadth['bullish_rsi_pct']}%"
+    )
+
+    col4.metric(
+
+        "% Strong RS",
+
+        f"{breadth['strong_rs_pct']}%"
+    )
+
+    # ======================================
+    # CHART
+    # ======================================
+
+    st.subheader(
+        "📊 Breadth Components"
+    )
+
+    breadth_df = pd.DataFrame({
+
+        "Metric": [
+
+            "Above MA20",
+
+            "Bullish RSI",
+
+            "Breakout",
+
+            "Strong RS"
+        ],
+
+        "Value": [
+
+            breadth[
+                "above_ma20_pct"
+            ],
+
+            breadth[
+                "bullish_rsi_pct"
+            ],
+
+            breadth[
+                "breakout_pct"
+            ],
+
+            breadth[
+                "strong_rs_pct"
+            ]
+        ]
+    })
+
+    breadth_fig = go.Figure()
+
+    breadth_fig.add_trace(
+
+        go.Bar(
+
+            x=breadth_df["Metric"],
+
+            y=breadth_df["Value"],
+
+            name="Breadth"
+        )
+    )
+
+    breadth_fig.update_layout(
+
+        height=450,
+
+        yaxis_title="Percentage"
+    )
+
+    st.plotly_chart(
+
+        breadth_fig,
+
+        use_container_width=True
+    )
+
+else:
+
+    st.warning(
+        "Market breadth unavailable"
+    )
 
 # ======================================
 # LOAD SECTOR DATA
