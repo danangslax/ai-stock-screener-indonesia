@@ -1,4 +1,5 @@
 from core.screener import (
+    IDX_STOCKS,
     run_screener
 )
 
@@ -15,6 +16,10 @@ from core.notifier import (
     send_telegram_message,
 
     format_screener_message
+)
+
+from core.market_commentary import (
+    generate_market_commentary
 )
 
 # ======================================
@@ -47,6 +52,19 @@ def main():
         screener_df = run_screener()
 
         # ======================================
+        # AI MARKET COMMENTARY
+        # ======================================
+
+        commentary = (
+            generate_market_commentary(
+
+                IDX_STOCKS,
+
+                screener_df
+            )
+        )
+
+        # ======================================
         # EMPTY RESULT
         # ======================================
 
@@ -67,6 +85,14 @@ No stock passed today's screening.
 
             send_telegram_message(
                 message
+            )
+
+            # ======================================
+            # SEND COMMENTARY
+            # ======================================
+
+            send_telegram_message(
+                commentary
             )
 
             return
@@ -106,11 +132,19 @@ No stock passed today's screening.
         )
 
         # ======================================
-        # SEND TELEGRAM
+        # SEND TOP PICK
         # ======================================
 
         send_telegram_message(
             message
+        )
+
+        # ======================================
+        # SEND MARKET COMMENTARY
+        # ======================================
+
+        send_telegram_message(
+            commentary
         )
 
         print(
@@ -126,7 +160,6 @@ No stock passed today's screening.
         send_telegram_message(
             f"❌ AI Screener Error:\n{e}"
         )
-
 
 # ======================================
 # ENTRY POINT
