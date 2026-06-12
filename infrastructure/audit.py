@@ -1,6 +1,4 @@
-from datetime import datetime
-
-from app.services.infrastructure.logger import logger
+from infrastructure.logger import logger
 
 # ======================================
 # AUDIT EVENT
@@ -9,6 +7,4 @@ from app.services.infrastructure.logger import logger
 
 def audit_event(action, detail=""):
 
-    timestamp = str(datetime.now())
-
-    logger.info(f"[AUDIT] " f"{timestamp} | " f"{action} | " f"{detail}")
+    logger.info(f"[AUDIT] " f"Action={action} | " f"Detail={detail}")

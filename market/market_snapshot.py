@@ -2,11 +2,15 @@ import json
 
 from pathlib import Path
 
-from core.market import get_market_status
+from datetime import datetime
 
-from core.market_breadth import analyze_market_breadth
+from infrastructure.logger import logger
 
-from core.sector_strength import analyze_sector_strength
+from market.market import get_market_status
+
+from market.market_breadth import analyze_market_breadth
+
+from market.sector_strength import analyze_sector_strength
 
 # ======================================
 # SNAPSHOT DIRECTORY
@@ -17,6 +21,12 @@ SNAPSHOT_DIR = Path("data") / "snapshots"
 SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ======================================
+# SNAPSHOT PATH
+# ======================================
+
+SNAPSHOT_PATH = SNAPSHOT_DIR / "market_snapshot.json"
+
+# ======================================
 # BUILD MARKET SNAPSHOT
 # ======================================
 
@@ -25,25 +35,49 @@ def build_market_snapshot(symbols):
 
     try:
 
-        print("📈 Building Market Snapshot")
+        logger.info("Building Market Snapshot")
 
         # ======================================
         # MARKET STATUS
         # ======================================
 
-        market = get_market_status()
+        try:
+
+            market = get_market_status()
+
+        except Exception as e:
+
+            logger.warning(f"Market engine failed: " f"{e}")
+
+            market = {"status": "UNKNOWN"}
 
         # ======================================
         # MARKET BREADTH
         # ======================================
 
-        breadth = analyze_market_breadth(symbols)
+        try:
+
+            breadth = analyze_market_breadth(symbols)
+
+        except Exception as e:
+
+            logger.warning(f"Breadth engine failed: " f"{e}")
+
+            breadth = None
 
         # ======================================
         # SECTOR STRENGTH
         # ======================================
 
-        sector_df = analyze_sector_strength()
+        try:
+
+            sector_df = analyze_sector_strength()
+
+        except Exception as e:
+
+            logger.warning(f"Sector engine failed: " f"{e}")
+
+            sector_df = None
 
         # ======================================
         # DEFAULT VALUES
@@ -59,7 +93,7 @@ def build_market_snapshot(symbols):
         # TOP SECTOR
         # ======================================
 
-        if not sector_df.empty:
+        if sector_df is not None and not sector_df.empty:
 
             top_sector = sector_df.iloc[0]
 
@@ -67,7 +101,7 @@ def build_market_snapshot(symbols):
 
             sector_leader = top_sector["Leader"]
 
-            sector_score = top_sector["Score"]
+            sector_score = float(top_sector["Score"])
 
         # ======================================
         # MARKET BIAS
@@ -77,30 +111,48 @@ def build_market_snapshot(symbols):
 
         if breadth:
 
-            health_score = breadth["health_score"]
+            health_score = breadth.get("health_score", 0)
 
-            if health_score >= 75:
+            # ======================================
+            # AGGRESSIVE
+            # ======================================
+
+            if health_score >= 75 and market["status"] in ["STRONG_BULL", "BULL"]:
 
                 market_bias = "AGGRESSIVE"
+
+            # ======================================
+            # BULLISH
+            # ======================================
 
             elif health_score >= 60:
 
                 market_bias = "BULLISH"
 
+            # ======================================
+            # SELECTIVE
+            # ======================================
+
             elif health_score >= 40:
 
                 market_bias = "SELECTIVE"
+
+            # ======================================
+            # DEFENSIVE
+            # ======================================
 
             else:
 
                 market_bias = "DEFENSIVE"
 
         # ======================================
-        # SNAPSHOT RESULT
+        # SNAPSHOT
         # ======================================
 
         snapshot = {
-            "market_status": (market["status"]),
+            "created_at": str(datetime.now()),
+            "snapshot_version": "1.0",
+            "market_status": (market.get("status", "UNKNOWN")),
             "market_change": (market.get("change", 0)),
             "breadth_score": (breadth.get("health_score", 0) if breadth else 0),
             "breadth_status": (
@@ -110,27 +162,26 @@ def build_market_snapshot(symbols):
             "sector_leader": (sector_leader),
             "sector_score": (sector_score),
             "market_bias": (market_bias),
+            "total_symbols": len(symbols),
         }
 
-        print("✅ Market Snapshot Ready")
+        logger.info("Market Snapshot Ready")
 
         # ======================================
         # SAVE SNAPSHOT
         # ======================================
 
-        snapshot_path = SNAPSHOT_DIR / "market_snapshot.json"
+        with open(SNAPSHOT_PATH, "w", encoding="utf-8") as f:
 
-        with open(snapshot_path, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=4, default=str, ensure_ascii=False)
 
-            json.dump(snapshot, f, indent=4, default=str)
-
-        print("💾 Snapshot saved")
+        logger.info("Snapshot saved")
 
         return snapshot
 
     except Exception as e:
 
-        print(f"❌ Snapshot Error: " f"{e}")
+        logger.error(f"Snapshot Error: " f"{e}")
 
         return {
             "market_status": "UNKNOWN",

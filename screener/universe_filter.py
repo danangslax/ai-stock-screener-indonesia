@@ -1,6 +1,8 @@
 import pandas as pd
 
-from core.data_loader import load_stock_data
+from infrastructure.logger import logger
+
+from storage.data_loader import load_stock_data
 
 # ======================================
 # FAST UNIVERSE FILTER
@@ -11,11 +13,25 @@ def filter_universe(symbols, max_stocks=100):
 
     try:
 
-        print("🚀 Running Universe Filter")
+        logger.info("Running Universe Filter")
 
         results = []
 
         total = len(symbols)
+
+        # ======================================
+        # FILTER STATISTICS
+        # ======================================
+
+        skipped_price = 0
+
+        skipped_liquidity = 0
+
+        skipped_value = 0
+
+        skipped_volatility = 0
+
+        skipped_invalid = 0
 
         # ======================================
         # LOOP STOCKS
@@ -25,23 +41,45 @@ def filter_universe(symbols, max_stocks=100):
 
             try:
 
-                print(f"📊 " f"{i+1}/{total} " f"{symbol}")
+                logger.info(f"Universe Filter " f"{i+1}/{total} " f"{symbol}")
 
                 # ======================================
-                # LOAD DATA
+                # LOAD CACHE DATA
                 # ======================================
 
-                df = load_stock_data(symbol)
+                df = load_stock_data(symbol, use_cache=True, cache_only=True)
+
+                # ======================================
+                # VALIDATION
+                # ======================================
 
                 if df.empty:
+
+                    skipped_invalid += 1
 
                     continue
 
                 if len(df) < 30:
 
+                    skipped_invalid += 1
+
                     continue
 
                 latest = df.iloc[-1]
+
+                # ======================================
+                # REQUIRED COLUMNS
+                # ======================================
+
+                required_columns = ["Close", "Volume", "VOLATILITY", "VOL_MA20"]
+
+                missing = [col for col in required_columns if col not in latest]
+
+                if missing:
+
+                    skipped_invalid += 1
+
+                    continue
 
                 # ======================================
                 # BASIC DATA
@@ -51,60 +89,91 @@ def filter_universe(symbols, max_stocks=100):
 
                 volume = float(latest["Volume"])
 
-                value = price * volume
+                avg_volume = float(latest["VOL_MA20"])
+
+                volatility = float(latest["VOLATILITY"])
 
                 # ======================================
-                # BASIC VOLATILITY
+                # NAN VALIDATION
                 # ======================================
 
-                volatility = df["Close"].pct_change().rolling(20).std().iloc[-1]
+                metrics = [price, volume, avg_volume, volatility]
+
+                if any(pd.isna(v) for v in metrics):
+
+                    skipped_invalid += 1
+
+                    continue
 
                 # ======================================
-                # FAST FILTERS
+                # LIQUIDITY VALUE
                 # ======================================
 
-                # Avoid gocap
+                transaction_value = price * avg_volume
+
+                # ======================================
+                # PRICE FILTER
+                # ======================================
+
                 if price < 50:
 
+                    skipped_price += 1
+
                     continue
 
-                # Avoid expensive
                 if price > 10000:
 
-                    continue
-
-                # Minimum liquidity
-                if volume < 500_000:
-
-                    continue
-
-                # Minimum transaction value
-                if value < 5_000_000_000:
-
-                    continue
-
-                # Avoid crazy volatility
-                if volatility > 0.20:
+                    skipped_price += 1
 
                     continue
 
                 # ======================================
-                # SAVE
+                # LIQUIDITY FILTER
+                # ======================================
+
+                if avg_volume < 500_000:
+
+                    skipped_liquidity += 1
+
+                    continue
+
+                # ======================================
+                # TRANSACTION VALUE
+                # ======================================
+
+                if transaction_value < 5_000_000_000:
+
+                    skipped_value += 1
+
+                    continue
+
+                # ======================================
+                # VOLATILITY FILTER
+                # ======================================
+
+                if volatility > 0.20:
+
+                    skipped_volatility += 1
+
+                    continue
+
+                # ======================================
+                # SAVE RESULT
                 # ======================================
 
                 results.append(
                     {
                         "symbol": symbol,
-                        "price": price,
-                        "volume": volume,
-                        "value": value,
-                        "volatility": volatility,
+                        "price": round(price, 2),
+                        "avg_volume": int(avg_volume),
+                        "transaction_value": int(transaction_value),
+                        "volatility": round(volatility, 4),
                     }
                 )
 
             except Exception as e:
 
-                print(f"❌ Universe Error " f"{symbol}: {e}")
+                logger.error(f"Universe Error " f"{symbol}: {e}")
 
         # ======================================
         # DATAFRAME
@@ -114,15 +183,17 @@ def filter_universe(symbols, max_stocks=100):
 
         if result_df.empty:
 
+            logger.warning("Universe filter returned empty")
+
             return []
 
         # ======================================
         # SORT LIQUIDITY
         # ======================================
 
-        result_df = result_df.sort_values(by="value", ascending=False).reset_index(
-            drop=True
-        )
+        result_df = result_df.sort_values(
+            by="transaction_value", ascending=False
+        ).reset_index(drop=True)
 
         # ======================================
         # TOP STOCKS
@@ -130,22 +201,34 @@ def filter_universe(symbols, max_stocks=100):
 
         filtered_symbols = result_df["symbol"].head(max_stocks).tolist()
 
-        print("")
+        # ======================================
+        # SUMMARY
+        # ======================================
 
-        print("=================================")
+        logger.info("=================================")
 
-        print(f"✅ Universe Filter Complete")
+        logger.info("Universe Filter Complete")
 
-        print(f"Input: {len(symbols)}")
+        logger.info(f"Input Stocks: " f"{len(symbols)}")
 
-        print(f"Output: " f"{len(filtered_symbols)}")
+        logger.info(f"Filtered Stocks: " f"{len(filtered_symbols)}")
 
-        print("=================================")
+        logger.info(f"Skipped Price: " f"{skipped_price}")
+
+        logger.info(f"Skipped Liquidity: " f"{skipped_liquidity}")
+
+        logger.info(f"Skipped Value: " f"{skipped_value}")
+
+        logger.info(f"Skipped Volatility: " f"{skipped_volatility}")
+
+        logger.info(f"Skipped Invalid: " f"{skipped_invalid}")
+
+        logger.info("=================================")
 
         return filtered_symbols
 
     except Exception as e:
 
-        print(f"❌ Universe Filter Error: " f"{e}")
+        logger.error(f"Universe Filter Error: {e}")
 
         return []

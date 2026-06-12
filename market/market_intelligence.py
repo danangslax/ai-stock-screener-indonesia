@@ -1,5 +1,70 @@
+from infrastructure.logger import logger
+
 # ======================================
-# AI MARKET INTELLIGENCE
+# MARKET COMMENTARY TEMPLATES
+# ======================================
+
+MARKET_TEMPLATES = {
+    "STRONG_BULL": {
+        "emoji": "🚀",
+        "insight": ("Momentum market kuat " "dan breakout success tinggi."),
+        "strategy": ("Breakout & momentum continuation."),
+        "warning": ("Hindari entry terlalu jauh " "dari support."),
+        "exposure": ("Aggressive exposure allowed."),
+    },
+    "BULL": {
+        "emoji": "📈",
+        "insight": ("Trend market sehat " "dengan leadership jelas."),
+        "strategy": ("Pullback buy pada saham leader."),
+        "warning": ("Jangan chase candle extended."),
+        "exposure": ("Normal bullish exposure."),
+    },
+    "ACCUMULATION": {
+        "emoji": "🛒",
+        "insight": ("Market mulai akumulasi " "namun breakout belum konsisten."),
+        "strategy": ("Buy near support " "dan fokus volume accumulation."),
+        "warning": ("Hindari breakout agresif."),
+        "exposure": ("Selective exposure."),
+    },
+    "SIDEWAYS": {
+        "emoji": "↔️",
+        "insight": ("Market bergerak dalam range."),
+        "strategy": ("Swing pendek support-resistance."),
+        "warning": ("Breakout rawan fake move."),
+        "exposure": ("Reduced exposure."),
+    },
+    "DISTRIBUTION": {
+        "emoji": "⚠️",
+        "insight": ("Market menunjukkan " "tanda pelemahan."),
+        "strategy": ("Selective trading " "dan defensive setup."),
+        "warning": ("Kurangi agresivitas posisi."),
+        "exposure": ("Defensive exposure."),
+    },
+    "PANIC": {
+        "emoji": "🩸",
+        "insight": ("Volatilitas tinggi " "dan market panic."),
+        "strategy": ("Capital preservation."),
+        "warning": ("Hindari overtrading."),
+        "exposure": ("High cash allocation."),
+    },
+    "BEARISH": {
+        "emoji": "🐻",
+        "insight": ("Trend market masih lemah."),
+        "strategy": ("Quick swing dan defensive."),
+        "warning": ("Prioritaskan cash management."),
+        "exposure": ("Low exposure."),
+    },
+    "RECOVERY": {
+        "emoji": "🌱",
+        "insight": ("Market mulai recovery " "dan leader baru muncul."),
+        "strategy": ("Early trend following."),
+        "warning": ("Tetap selektif pada volume."),
+        "exposure": ("Gradual position building."),
+    },
+}
+
+# ======================================
+# GENERATE MARKET INTELLIGENCE
 # ======================================
 
 
@@ -7,9 +72,17 @@ def generate_market_intelligence(snapshot):
 
     try:
 
+        # ======================================
+        # VALIDATION
+        # ======================================
+
         if not snapshot:
 
             return "⚠️ Snapshot unavailable"
+
+        # ======================================
+        # SNAPSHOT DATA
+        # ======================================
 
         market_status = snapshot.get("market_status", "UNKNOWN")
 
@@ -22,117 +95,27 @@ def generate_market_intelligence(snapshot):
         market_bias = snapshot.get("market_bias", "DEFENSIVE")
 
         # ======================================
-        # MARKET INSIGHT
+        # TEMPLATE
         # ======================================
 
-        insight = ""
-
-        strategy = ""
-
-        warning = ""
-
-        # ======================================
-        # STRONG BULL
-        # ======================================
-
-        if market_status == "STRONG_BULL":
-
-            insight = "Momentum market kuat " "dan breakout success tinggi."
-
-            strategy = "Breakout & momentum continuation."
-
-            warning = "Hindari entry terlalu jauh " "dari support."
+        template = MARKET_TEMPLATES.get(
+            market_status,
+            {
+                "emoji": "❓",
+                "insight": ("Market condition unclear."),
+                "strategy": ("Wait and observe."),
+                "warning": ("Avoid aggressive trading."),
+                "exposure": ("Minimal exposure."),
+            },
+        )
 
         # ======================================
-        # BULL
-        # ======================================
-
-        elif market_status == "BULL":
-
-            insight = "Trend market sehat " "dengan leadership jelas."
-
-            strategy = "Pullback buy pada saham leader."
-
-            warning = "Jangan chase candle extended."
-
-        # ======================================
-        # ACCUMULATION
-        # ======================================
-
-        elif market_status == "ACCUMULATION":
-
-            insight = "Market mulai akumulasi " "namun breakout belum konsisten."
-
-            strategy = "Buy near support " "dan fokus volume accumulation."
-
-            warning = "Hindari breakout agresif."
-
-        # ======================================
-        # SIDEWAYS
-        # ======================================
-
-        elif market_status == "SIDEWAYS":
-
-            insight = "Market bergerak dalam range."
-
-            strategy = "Swing pendek support-resistance."
-
-            warning = "Breakout rawan fake move."
-
-        # ======================================
-        # DISTRIBUTION
-        # ======================================
-
-        elif market_status == "DISTRIBUTION":
-
-            insight = "Market menunjukkan " "tanda pelemahan."
-
-            strategy = "Selective trading " "dan defensive setup."
-
-            warning = "Kurangi agresivitas posisi."
-
-        # ======================================
-        # PANIC
-        # ======================================
-
-        elif market_status == "PANIC":
-
-            insight = "Volatilitas tinggi " "dan market panic."
-
-            strategy = "Capital preservation."
-
-            warning = "Hindari overtrading."
-
-        # ======================================
-        # BEARISH
-        # ======================================
-
-        elif market_status == "BEARISH":
-
-            insight = "Trend market masih lemah."
-
-            strategy = "Quick swing dan defensive."
-
-            warning = "Prioritaskan cash management."
-
-        # ======================================
-        # RECOVERY
-        # ======================================
-
-        elif market_status == "RECOVERY":
-
-            insight = "Market mulai recovery " "dan leader baru muncul."
-
-            strategy = "Early trend following."
-
-            warning = "Tetap selektif pada volume."
-
-        # ======================================
-        # FINAL COMMENTARY
+        # COMMENTARY
         # ======================================
 
         commentary = f"""
-📈 MARKET REGIME: {market_status}
+{template["emoji"]} MARKET REGIME:
+{market_status}
 
 📊 Breadth Score:
 {breadth_score}
@@ -147,19 +130,24 @@ def generate_market_intelligence(snapshot):
 {market_bias}
 
 🧠 Market Insight:
-{insight}
+{template["insight"]}
 
 ⚠️ Market Warning:
-{warning}
+{template["warning"]}
 
 🔥 Best Strategy:
-{strategy}
+{template["strategy"]}
+
+💼 Portfolio Exposure:
+{template["exposure"]}
 """
+
+        logger.info("Market intelligence generated")
 
         return commentary
 
     except Exception as e:
 
-        print(f"❌ Market intelligence error: " f"{e}")
+        logger.error(f"Market intelligence " f"error: {e}")
 
         return "⚠️ Intelligence unavailable"

@@ -1,7 +1,16 @@
 import pandas as pd
-import yfinance as yf
+
+from infrastructure.logger import logger
+
+from storage.data_loader import load_stock_data
 
 from storage.indicators import add_indicators
+
+# ======================================
+# MARKET SYMBOL
+# ======================================
+
+MARKET_SYMBOL = "^JKSE"
 
 # ======================================
 # GET MARKET STATUS
@@ -12,21 +21,21 @@ def get_market_status():
 
     try:
 
-        print("📈 Analyzing IHSG")
+        logger.info("Analyzing IHSG")
 
         # ======================================
-        # DOWNLOAD IHSG
+        # LOAD MARKET DATA
         # ======================================
 
-        df = yf.download(
-            "^JKSE", period="1y", interval="1d", auto_adjust=True, progress=False
-        )
+        df = load_stock_data(MARKET_SYMBOL, period="1y", interval="1d", use_cache=True)
 
         # ======================================
         # VALIDATION
         # ======================================
 
         if df.empty:
+
+            logger.warning("IHSG data empty")
 
             return {"status": "UNKNOWN"}
 
@@ -46,15 +55,25 @@ def get_market_status():
 
         if df.empty:
 
+            logger.warning("IHSG indicator failed")
+
             return {"status": "UNKNOWN"}
 
+        # ======================================
+        # LATEST DATA
+        # ======================================
+
         latest = df.iloc[-1]
+
+        previous = df.iloc[-2]
 
         # ======================================
         # BASIC DATA
         # ======================================
 
         close = float(latest["Close"])
+
+        previous_close = float(previous["Close"])
 
         ma20 = float(latest["MA20"])
 
@@ -71,6 +90,28 @@ def get_market_status():
         volatility = float(latest["VOLATILITY"])
 
         monthly_return = float(latest["MONTHLY_RETURN"])
+
+        # ======================================
+        # NAN VALIDATION
+        # ======================================
+
+        metrics = [
+            close,
+            ma20,
+            ma50,
+            ema20,
+            ema50,
+            rsi,
+            adx,
+            volatility,
+            monthly_return,
+        ]
+
+        if any(pd.isna(v) for v in metrics):
+
+            logger.warning("Invalid IHSG metrics")
+
+            return {"status": "UNKNOWN"}
 
         # ======================================
         # DEFAULT STATUS
@@ -109,14 +150,6 @@ def get_market_status():
             status = "ACCUMULATION"
 
         # ======================================
-        # DISTRIBUTION
-        # ======================================
-
-        elif close < ma20 and rsi < 50 and volatility > 0.02:
-
-            status = "DISTRIBUTION"
-
-        # ======================================
         # PANIC
         # ======================================
 
@@ -133,6 +166,14 @@ def get_market_status():
             status = "BEARISH"
 
         # ======================================
+        # DISTRIBUTION
+        # ======================================
+
+        elif close < ma20 and rsi < 50 and volatility > 0.02:
+
+            status = "DISTRIBUTION"
+
+        # ======================================
         # RECOVERY
         # ======================================
 
@@ -144,13 +185,12 @@ def get_market_status():
         # DAILY CHANGE
         # ======================================
 
-        previous_close = float(df.iloc[-2]["Close"])
-
         change = round(((close - previous_close) / previous_close) * 100, 2)
 
-        print(f"🌍 Market Regime: " f"{status}")
+        logger.info(f"Market Regime: {status}")
 
         return {
+            "symbol": MARKET_SYMBOL,
             "status": status,
             "change": change,
             "close": close,
@@ -158,10 +198,11 @@ def get_market_status():
             "adx": round(adx, 2),
             "volatility": round(volatility, 4),
             "monthly_return": round(monthly_return, 4),
+            "data_points": len(df),
         }
 
     except Exception as e:
 
-        print(f"❌ Market Error: {e}")
+        logger.error(f"Market Error: {e}")
 
         return {"status": "UNKNOWN"}

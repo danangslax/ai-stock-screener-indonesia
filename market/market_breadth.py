@@ -1,19 +1,27 @@
 import pandas as pd
 
-from core.data_loader import load_stock_data
+from infrastructure.logger import logger
 
-from storage.indicators import add_indicators
+from storage.data_loader import load_stock_data
 
-from core.relative_strength import calculate_relative_strength
+from screener.relative_strength import calculate_relative_strength
 
 # ======================================
 # ANALYZE MARKET BREADTH
 # ======================================
 
 
-def analyze_market_breadth(symbols):
+def analyze_market_breadth(symbols, max_symbols=200):
 
     try:
+
+        logger.info("Analyzing market breadth")
+
+        # ======================================
+        # LIMIT SYMBOLS
+        # ======================================
+
+        symbols = symbols[:max_symbols]
 
         # ======================================
         # COUNTERS
@@ -29,39 +37,59 @@ def analyze_market_breadth(symbols):
 
         strong_rs = 0
 
+        skipped = 0
+
         # ======================================
         # LOOP SYMBOLS
         # ======================================
 
-        for symbol in symbols:
+        for i, symbol in enumerate(symbols):
 
             try:
+
+                logger.info(f"Breadth " f"{i+1}/{len(symbols)} " f"{symbol}")
 
                 # ======================================
                 # LOAD DATA
                 # ======================================
 
-                df = load_stock_data(symbol, period="6mo", interval="1d")
+                df = load_stock_data(
+                    symbol, period="6mo", interval="1d", use_cache=True
+                )
+
+                # ======================================
+                # VALIDATION
+                # ======================================
 
                 if df.empty:
+
+                    skipped += 1
 
                     continue
 
                 if len(df) < 50:
 
-                    continue
-
-                # ======================================
-                # INDICATORS
-                # ======================================
-
-                df = add_indicators(df)
-
-                if df.empty:
+                    skipped += 1
 
                     continue
 
                 latest = df.iloc[-1]
+
+                # ======================================
+                # REQUIRED METRICS
+                # ======================================
+
+                required_metrics = ["Close", "MA20", "RSI", "High"]
+
+                missing = [col for col in required_metrics if col not in df.columns]
+
+                if missing:
+
+                    skipped += 1
+
+                    logger.warning(f"Missing columns " f"{symbol}: " f"{missing}")
+
+                    continue
 
                 total += 1
 
@@ -105,13 +133,17 @@ def analyze_market_breadth(symbols):
 
             except Exception as e:
 
-                print(f"BREADTH ERROR " f"{symbol}: {e}")
+                skipped += 1
+
+                logger.warning(f"Breadth Error " f"{symbol}: {e}")
 
         # ======================================
         # VALIDATION
         # ======================================
 
         if total == 0:
+
+            logger.warning("No valid breadth data")
 
             return None
 
@@ -160,11 +192,12 @@ def analyze_market_breadth(symbols):
             status = "WEAK MARKET"
 
         # ======================================
-        # RETURN RESULT
+        # RESULT
         # ======================================
 
-        return {
+        result = {
             "total_stocks": total,
+            "skipped_stocks": skipped,
             "above_ma20_pct": (above_ma20_pct),
             "bullish_rsi_pct": (bullish_rsi_pct),
             "breakout_pct": (breakout_pct),
@@ -173,8 +206,12 @@ def analyze_market_breadth(symbols):
             "status": status,
         }
 
+        logger.info(f"Market Breadth: " f"{status} | " f"Score={health_score}")
+
+        return result
+
     except Exception as e:
 
-        print(f"MARKET BREADTH ERROR: " f"{e}")
+        logger.error(f"Market Breadth Error: " f"{e}")
 
         return None

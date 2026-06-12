@@ -2,39 +2,67 @@ from pathlib import Path
 
 import pandas as pd
 
-from core.data_loader import load_stock_data
+from storage.data_loader import (
+    load_stock_data,
+)
 
-from core.scoring import calculate_score
+from screener.scoring import (
+    calculate_score,
+)
 
-from core.market import get_market_status
+from market.market import (
+    get_market_status,
+)
 
-from core.daily_timeframe import analyze_daily_timeframe
+from screener.daily_timeframe import (
+    analyze_daily_timeframe,
+)
 
-from core.relative_strength import calculate_relative_strength
+from screener.relative_strength import (
+    calculate_relative_strength,
+)
 
-from core.universe_filter import filter_universe
+from screener.universe_filter import (
+    filter_universe,
+)
 
-from core.strategy_router import run_strategy
+from strategies.strategy_router import (
+    run_strategy,
+)
 
-from core.weekly_timeframe import analyze_weekly_timeframe
+from screener.weekly_timeframe import (
+    analyze_weekly_timeframe,
+)
 
-from core.confidence import calculate_confidence
+from screener.confidence import (
+    calculate_confidence,
+)
 
-from core.meta_strategy import adjust_confidence
+from ai.meta_strategy import (
+    adjust_confidence,
+)
 
-from core.trade_journal import load_journal
+from trading.trade_journal import (
+    load_journal,
+)
 
-from core.learning_engine import analyze_learning_data
+from ai.learning_engine import (
+    analyze_learning_data,
+)
 
-from core.ai_parameters import load_parameters
+from ai.ai_parameters import (
+    load_parameters,
+)
 
-from app.services.infrastructure.logger import logger
+from infrastructure.logger import (
+    logger,
+)
 
 # ======================================
 # BASE DIRECTORY
 # ======================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 # ======================================
 # WATCHLIST PATH
@@ -46,11 +74,14 @@ WATCHLIST_PATH = BASE_DIR / "watchlist" / "idx_stocks.txt"
 # LOAD WATCHLIST
 # ======================================
 
-with open(WATCHLIST_PATH, "r", encoding="utf-8") as f:
-
+with open(
+    WATCHLIST_PATH,
+    "r",
+    encoding="utf-8",
+) as f:
     IDX_STOCKS = [line.strip() for line in f if line.strip()]
 
-print(f"✅ Total saham: " f"{len(IDX_STOCKS)}")
+logger.info(f"Total saham: " f"{len(IDX_STOCKS)}")
 
 # ======================================
 # AI SCREENER ENGINE
@@ -63,13 +94,17 @@ def run_screener():
 
     try:
 
+        logger.info("Starting AI Screener")
+
         # ======================================
         # MARKET STATUS
         # ======================================
 
         market = get_market_status()
 
-        logger.info(f"Market Status: " f"{market['status']}")
+        market_status = market.get("status", "UNKNOWN")
+
+        logger.info(f"Market Status: " f"{market_status}")
 
         # ======================================
         # LOAD AI PARAMETERS
@@ -77,32 +112,26 @@ def run_screener():
 
         ai_parameters = load_parameters()
 
-        min_rsi = ai_parameters["min_rsi"]
+        min_rsi = ai_parameters.get("min_rsi", 50)
 
-        min_adx = ai_parameters["min_adx"]
+        min_adx = ai_parameters.get("min_adx", 20)
 
-        max_volatility = ai_parameters["max_volatility"]
+        max_volatility = ai_parameters.get("max_volatility", 0.10)
 
-        print(
-            f"🤖 AI Parameters | "
-            f"RSI: {min_rsi} | "
-            f"ADX: {min_adx} | "
-            f"VOL: {max_volatility}"
+        logger.info(
+            f"AI Parameters | "
+            f"RSI={min_rsi} | "
+            f"ADX={min_adx} | "
+            f"VOL={max_volatility}"
         )
 
         # ======================================
-        # LOAD AI LEARNING
+        # LOAD LEARNING DATA
         # ======================================
 
         journal_data = load_journal()
 
         learning_df = analyze_learning_data(journal_data)
-
-        # ======================================
-        # RESULT CONTAINER
-        # ======================================
-
-        results = []
 
         # ======================================
         # FAST UNIVERSE FILTER
@@ -112,17 +141,49 @@ def run_screener():
 
         total = len(filtered_symbols)
 
-        print(f"🔥 Filtered Universe: " f"{total}")
+        logger.info(f"Filtered Universe: " f"{total}")
 
         # ======================================
-        # EMPTY FILTER RESULT
+        # EMPTY FILTER
         # ======================================
 
         if total == 0:
 
-            print("⚠️ Universe filter empty")
+            logger.warning("Universe filter empty")
 
             return (pd.DataFrame(), [])
+
+        # ======================================
+        # BENCHMARK CACHE
+        # ======================================
+
+        benchmark_df = load_stock_data(
+            "^JKSE",
+            period="6mo",
+            interval="1d",
+            use_cache=True,
+        )
+
+        # ======================================
+        # RESULT CONTAINER
+        # ======================================
+
+        results = []
+
+        # ======================================
+        # FILTER STATISTICS
+        # ======================================
+
+        failed_data = 0
+        failed_basic = 0
+        failed_trend = 0
+        failed_rsi = 0
+        failed_adx = 0
+        failed_volatility = 0
+        failed_daily = 0
+        failed_weekly = 0
+        failed_rs = 0
+        failed_strategy = 0
 
         # ======================================
         # LOOP STOCKS
@@ -130,15 +191,20 @@ def run_screener():
 
         for i, symbol in enumerate(filtered_symbols):
 
-            print(f"📊 Scanning " f"{i+1}/{total}: " f"{symbol}")
+            logger.info(f"Scanning " f"{i+1}/{total}: " f"{symbol}")
 
             try:
 
                 # ======================================
-                # LOAD ENRICHED CACHE
+                # LOAD DATA
                 # ======================================
 
-                df = load_stock_data(symbol, period="6mo", interval="1d")
+                df = load_stock_data(
+                    symbol,
+                    period="6mo",
+                    interval="1d",
+                    use_cache=True,
+                )
 
                 # ======================================
                 # VALIDATION
@@ -146,19 +212,13 @@ def run_screener():
 
                 if df.empty:
 
+                    failed_data += 1
+
                     continue
 
                 if len(df) < 60:
 
-                    continue
-
-                # ======================================
-                # VALIDATE INDICATORS
-                # ======================================
-
-                if "RSI" not in df.columns:
-
-                    print(f"⚠️ Indicators missing " f"{symbol}")
+                    failed_data += 1
 
                     continue
 
@@ -169,6 +229,8 @@ def run_screener():
                 # ======================================
 
                 required_columns = [
+                    "Close",
+                    "Volume",
                     "RSI",
                     "ATR",
                     "ADX",
@@ -187,7 +249,11 @@ def run_screener():
 
                 if missing_columns:
 
-                    print(f"⚠️ Missing columns " f"{symbol}: " f"{missing_columns}")
+                    logger.warning(
+                        f"{symbol} " f"Missing columns: " f"{missing_columns}"
+                    )
+
+                    failed_data += 1
 
                     continue
 
@@ -213,15 +279,45 @@ def run_screener():
 
                 ema50 = float(latest["EMA50"])
 
-                relative_volume = round(volume / latest["VOL_MA20"], 2)
+                vol_ma20 = float(latest["VOL_MA20"])
 
                 # ======================================
                 # NAN VALIDATION
                 # ======================================
 
-                if pd.isna(atr) or pd.isna(adx) or pd.isna(rsi):
+                metrics = [
+                    price,
+                    volume,
+                    value,
+                    rsi,
+                    atr,
+                    adx,
+                    volatility,
+                    ema20,
+                    ema50,
+                    vol_ma20,
+                ]
+
+                if any(pd.isna(v) for v in metrics):
+
+                    failed_data += 1
 
                     continue
+
+                # ======================================
+                # RELATIVE VOLUME
+                # ======================================
+
+                if vol_ma20 <= 0:
+
+                    failed_data += 1
+
+                    continue
+
+                relative_volume = round(
+                    volume / vol_ma20,
+                    2,
+                )
 
                 # ======================================
                 # BASIC FILTER
@@ -229,17 +325,25 @@ def run_screener():
 
                 if price < 50:
 
+                    failed_basic += 1
+
                     continue
 
                 if price > 5000:
+
+                    failed_basic += 1
 
                     continue
 
                 if volume < 1_000_000:
 
+                    failed_basic += 1
+
                     continue
 
                 if value < 15_000_000_000:
+
+                    failed_basic += 1
 
                     continue
 
@@ -249,6 +353,8 @@ def run_screener():
 
                 if ema20 < ema50:
 
+                    failed_trend += 1
+
                     continue
 
                 # ======================================
@@ -256,6 +362,8 @@ def run_screener():
                 # ======================================
 
                 if adx < min_adx:
+
+                    failed_adx += 1
 
                     continue
 
@@ -265,13 +373,23 @@ def run_screener():
 
                 if volatility > max_volatility:
 
+                    failed_volatility += 1
+
                     continue
 
                 # ======================================
                 # RSI FILTER
                 # ======================================
 
-                if rsi < min_rsi or rsi > 85:
+                if rsi < min_rsi:
+
+                    failed_rsi += 1
+
+                    continue
+
+                if rsi > 85:
+
+                    failed_rsi += 1
 
                     continue
 
@@ -283,17 +401,19 @@ def run_screener():
 
                 if daily_analysis is None or daily_analysis["status"] == "WEAK":
 
+                    failed_daily += 1
+
                     continue
 
                 # ======================================
                 # WEEKLY ANALYSIS
                 # ======================================
 
-                weekly_df = df.copy()
-
-                weekly_analysis = analyze_weekly_timeframe(weekly_df)
+                weekly_analysis = analyze_weekly_timeframe(df)
 
                 if weekly_analysis is None or weekly_analysis["status"] == "WEAK":
+
+                    failed_weekly += 1
 
                     continue
 
@@ -301,19 +421,29 @@ def run_screener():
                 # RELATIVE STRENGTH
                 # ======================================
 
-                rs_analysis = calculate_relative_strength(df)
+                rs_analysis = calculate_relative_strength(
+                    stock_df=df,
+                    benchmark_df=benchmark_df,
+                )
 
                 if rs_analysis is None or rs_analysis["status"] == "WEAK":
+
+                    failed_rs += 1
 
                     continue
 
                 # ======================================
-                # MARKET FILTER
+                # BEARISH MARKET FILTER
                 # ======================================
 
-                if market["status"] == "STRONG BEARISH":
+                if market_status in [
+                    "BEARISH",
+                    "PANIC",
+                ]:
 
                     if rs_analysis["status"] != "MARKET LEADER":
+
+                        failed_rs += 1
 
                         continue
 
@@ -321,9 +451,15 @@ def run_screener():
                 # STRATEGY ENGINE
                 # ======================================
 
-                strategy_analysis = run_strategy(market["status"], latest, df)
+                strategy_analysis = run_strategy(
+                    market_status,
+                    latest,
+                    df,
+                )
 
                 if strategy_analysis is None or strategy_analysis["status"] != "PASS":
+
+                    failed_strategy += 1
 
                     continue
 
@@ -331,7 +467,9 @@ def run_screener():
                 # BASE SCORE
                 # ======================================
 
-                score = calculate_score(latest, df)
+                score_analysis = calculate_score(latest)
+
+                score = score_analysis["score"]
 
                 # ======================================
                 # DAILY BONUS
@@ -361,9 +499,15 @@ def run_screener():
                 # TRADE PLAN
                 # ======================================
 
-                stop_loss = round(price - (2 * atr), 2)
+                stop_loss = round(
+                    price - (2 * atr),
+                    2,
+                )
 
-                take_profit = round(price + (4 * atr), 2)
+                take_profit = round(
+                    price + (4 * atr),
+                    2,
+                )
 
                 risk = price - stop_loss
 
@@ -371,7 +515,10 @@ def run_screener():
 
                     continue
 
-                risk_reward = round((take_profit - price) / risk, 2)
+                risk_reward = round(
+                    (take_profit - price) / risk,
+                    2,
+                )
 
                 # ======================================
                 # RISK REWARD BONUS
@@ -382,10 +529,13 @@ def run_screener():
                     score += 5
 
                 # ======================================
-                # SCORE LIMIT
+                # FINAL SCORE LIMIT
                 # ======================================
 
-                score = min(score, 100)
+                score = min(
+                    score,
+                    100,
+                )
 
                 # ======================================
                 # MINIMUM SCORE
@@ -400,7 +550,7 @@ def run_screener():
                 # ======================================
 
                 confidence_analysis = calculate_confidence(
-                    market["status"],
+                    market_status,
                     weekly_analysis,
                     daily_analysis,
                     rs_analysis,
@@ -415,7 +565,7 @@ def run_screener():
                 meta_analysis = adjust_confidence(
                     confidence_analysis["confidence"],
                     strategy_analysis["strategy"],
-                    market["status"],
+                    market_status,
                     learning_df,
                 )
 
@@ -443,11 +593,11 @@ def run_screener():
                         "Score": score,
                         "Confidence": (final_confidence),
                         "Signal_Quality": (confidence_analysis["quality"]),
-                        "Stop_Loss": stop_loss,
-                        "Take_Profit": take_profit,
-                        "Risk_Reward": risk_reward,
-                        "Market": (market["status"]),
-                        "Market_Regime": (market["status"]),
+                        "Stop_Loss": (stop_loss),
+                        "Take_Profit": (take_profit),
+                        "Risk_Reward": (risk_reward),
+                        "Market": (market_status),
+                        "Market_Regime": (market_status),
                         "Daily_Status": (daily_analysis["status"]),
                         "Daily_Score": (daily_analysis["score"]),
                         "Weekly_Status": (weekly_analysis["status"]),
@@ -479,16 +629,25 @@ def run_screener():
 
         if result_df.empty:
 
-            print("⚠️ No stocks passed screening")
+            logger.warning("No stocks passed screening")
 
-            return (pd.DataFrame(), filtered_symbols)
+            return (
+                pd.DataFrame(),
+                filtered_symbols,
+            )
 
         # ======================================
-        # SORTING
+        # SORT RESULTS
         # ======================================
 
         result_df = result_df.sort_values(
-            by=["Confidence", "Score", "RS_Ratio", "Relative_Volume"], ascending=False
+            by=[
+                "Confidence",
+                "Score",
+                "RS_Ratio",
+                "Relative_Volume",
+            ],
+            ascending=False,
         ).reset_index(drop=True)
 
         # ======================================
@@ -497,12 +656,46 @@ def run_screener():
 
         result_df = result_df.head(50)
 
-        print(f"✅ Total results: " f"{len(result_df)}")
+        # ======================================
+        # SUMMARY
+        # ======================================
 
-        return (result_df, filtered_symbols)
+        logger.info("=================================")
+
+        logger.info(f"Final Results: " f"{len(result_df)}")
+
+        logger.info(f"Failed Data: " f"{failed_data}")
+
+        logger.info(f"Failed Basic: " f"{failed_basic}")
+
+        logger.info(f"Failed Trend: " f"{failed_trend}")
+
+        logger.info(f"Failed RSI: " f"{failed_rsi}")
+
+        logger.info(f"Failed ADX: " f"{failed_adx}")
+
+        logger.info(f"Failed Volatility: " f"{failed_volatility}")
+
+        logger.info(f"Failed Daily: " f"{failed_daily}")
+
+        logger.info(f"Failed Weekly: " f"{failed_weekly}")
+
+        logger.info(f"Failed RS: " f"{failed_rs}")
+
+        logger.info(f"Failed Strategy: " f"{failed_strategy}")
+
+        logger.info("=================================")
+
+        return (
+            result_df,
+            filtered_symbols,
+        )
 
     except Exception as e:
 
-        print(f"❌ Screener Error: " f"{e}")
+        logger.error(f"Screener Error: {e}")
 
-        return (pd.DataFrame(), filtered_symbols)
+        return (
+            pd.DataFrame(),
+            filtered_symbols,
+        )

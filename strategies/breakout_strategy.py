@@ -1,3 +1,7 @@
+import pandas as pd
+
+from infrastructure.logger import logger
+
 # ======================================
 # BREAKOUT STRATEGY
 # ======================================
@@ -6,6 +10,10 @@
 def breakout_strategy(latest, df):
 
     try:
+
+        # ======================================
+        # BASIC DATA
+        # ======================================
 
         price = float(latest["Close"])
 
@@ -17,35 +25,102 @@ def breakout_strategy(latest, df):
 
         adx = float(latest["ADX"])
 
+        atr = float(latest["ATR"])
+
         vol_ma20 = float(latest["VOL_MA20"])
 
         high_20 = float(latest["HIGH_20"])
 
         # ======================================
+        # NAN VALIDATION
+        # ======================================
+
+        metrics = [price, volume, ma20, rsi, adx, atr, vol_ma20, high_20]
+
+        if any(pd.isna(v) for v in metrics):
+
+            return None
+
+        # ======================================
+        # METRICS
+        # ======================================
+
+        volume_ratio = round(volume / vol_ma20, 2)
+
+        breakout_distance = round(((price - high_20) / high_20) * 100, 2)
+
+        # ======================================
         # CONDITIONS
         # ======================================
 
-        conditions = [
+        conditions = {
             # breakout
-            price >= high_20 * 0.98,
+            "breakout": price >= high_20,
             # strong trend
-            adx >= 25,
+            "trend": adx >= 25,
             # healthy RSI
-            55 <= rsi <= 80,
+            "momentum": 55 <= rsi <= 80,
             # volume expansion
-            volume > (1.5 * vol_ma20),
+            "volume": volume_ratio >= 1.5,
             # trend alignment
-            price > ma20,
-        ]
+            "alignment": price > ma20,
+            # healthy volatility
+            "volatility": atr > 0,
+        }
 
-        score = sum(conditions) * 20
+        # ======================================
+        # WEIGHTED SCORE
+        # ======================================
+
+        score = 0
+
+        if conditions["breakout"]:
+
+            score += 25
+
+        if conditions["trend"]:
+
+            score += 20
+
+        if conditions["momentum"]:
+
+            score += 15
+
+        if conditions["volume"]:
+
+            score += 20
+
+        if conditions["alignment"]:
+
+            score += 10
+
+        if conditions["volatility"]:
+
+            score += 10
+
+        # ======================================
+        # STATUS
+        # ======================================
 
         status = "PASS" if score >= 80 else "FAIL"
 
-        return {"strategy": "BREAKOUT", "status": status, "score": score}
+        # ======================================
+        # RESULT
+        # ======================================
+
+        result = {
+            "strategy": "BREAKOUT",
+            "status": status,
+            "score": score,
+            "volume_ratio": (volume_ratio),
+            "breakout_distance": (breakout_distance),
+            "triggered_conditions": (sum(conditions.values())),
+        }
+
+        return result
 
     except Exception as e:
 
-        print(f"❌ Breakout strategy error: " f"{e}")
+        logger.error(f"Breakout strategy " f"error: {e}")
 
         return None

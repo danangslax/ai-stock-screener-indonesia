@@ -1,3 +1,7 @@
+import pandas as pd
+
+from infrastructure.logger import logger
+
 # ======================================
 # DEFENSIVE STRATEGY
 # ======================================
@@ -7,6 +11,10 @@ def defensive_strategy(latest, df):
 
     try:
 
+        # ======================================
+        # BASIC DATA
+        # ======================================
+
         volatility = float(latest["VOLATILITY"])
 
         rsi = float(latest["RSI"])
@@ -15,31 +23,108 @@ def defensive_strategy(latest, df):
 
         ema50 = float(latest["EMA50"])
 
-        relative_volume = latest["Volume"] / latest["VOL_MA20"]
+        atr = float(latest["ATR"])
+
+        volume = float(latest["Volume"])
+
+        vol_ma20 = float(latest["VOL_MA20"])
+
+        # ======================================
+        # NAN VALIDATION
+        # ======================================
+
+        metrics = [volatility, rsi, ema20, ema50, atr, volume, vol_ma20]
+
+        if any(pd.isna(v) for v in metrics):
+
+            return None
+
+        # ======================================
+        # VOLUME RATIO
+        # ======================================
+
+        if vol_ma20 <= 0:
+
+            return None
+
+        relative_volume = round(volume / vol_ma20, 2)
 
         # ======================================
         # CONDITIONS
         # ======================================
 
-        conditions = [
+        conditions = {
             # low volatility
-            volatility < 0.08,
+            "low_volatility": volatility < 0.04,
             # stable RSI
-            50 <= rsi <= 70,
+            "stable_rsi": 50 <= rsi <= 70,
             # trend stability
-            ema20 > ema50,
+            "trend_alignment": ema20 > ema50,
+            # healthy ATR
+            "healthy_atr": atr > 0,
             # decent volume
-            relative_volume >= 1,
-        ]
+            "volume_support": relative_volume >= 1,
+        }
 
-        score = sum(conditions) * 25
+        # ======================================
+        # WEIGHTED SCORE
+        # ======================================
+
+        score = 0
+
+        if conditions["low_volatility"]:
+
+            score += 30
+
+        if conditions["stable_rsi"]:
+
+            score += 20
+
+        if conditions["trend_alignment"]:
+
+            score += 25
+
+        if conditions["healthy_atr"]:
+
+            score += 10
+
+        if conditions["volume_support"]:
+
+            score += 15
+
+        # ======================================
+        # STATUS
+        # ======================================
 
         status = "PASS" if score >= 75 else "FAIL"
 
-        return {"strategy": "DEFENSIVE", "status": status, "score": score}
+        # ======================================
+        # RISK PROFILE
+        # ======================================
+
+        risk_profile = "LOW"
+
+        if volatility > 0.03:
+
+            risk_profile = "MEDIUM"
+
+        # ======================================
+        # RESULT
+        # ======================================
+
+        result = {
+            "strategy": "DEFENSIVE",
+            "status": status,
+            "score": score,
+            "risk_profile": (risk_profile),
+            "relative_volume": (relative_volume),
+            "triggered_conditions": (sum(conditions.values())),
+        }
+
+        return result
 
     except Exception as e:
 
-        print(f"❌ Defensive strategy error: " f"{e}")
+        logger.error(f"Defensive strategy " f"error: {e}")
 
         return None

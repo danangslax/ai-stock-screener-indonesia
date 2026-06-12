@@ -1,13 +1,13 @@
 import traceback
 
-from app.services.infrastructure.logger import logger
+from infrastructure.logger import logger
 
 # ======================================
 # SAFE EXECUTION
 # ======================================
 
 
-def safe_execute(func, *args, **kwargs):
+def safe_execute(func, *args, default=None, **kwargs):
 
     try:
 
@@ -15,8 +15,8 @@ def safe_execute(func, *args, **kwargs):
 
     except Exception as e:
 
-        logger.error(f"Crash Recovery: {e}")
+        logger.error(f"[RECOVERY] " f"Function: " f"{func.__name__} | " f"Error: {e}")
 
         logger.error(traceback.format_exc())
 
-        return None
+        return default

@@ -1,13 +1,15 @@
 # 📈 AI Stock Screener Indonesia
 
-AI-powered stock screener untuk saham Indonesia (IDX) menggunakan:
+AI-powered swing trading platform untuk saham Indonesia (IDX) menggunakan:
 
 - Streamlit Dashboard
-- Technical Analysis Engine
-- AI Scoring System
-- Telegram Notification
+- AI Technical Scoring
+- Market Regime Detection
+- Relative Strength Analysis
+- Telegram Automation
 - Paper Trading
 - Backtesting Engine
+- AI Learning Engine
 - Supabase Database
 - GitHub Actions Automation
 
@@ -19,77 +21,127 @@ AI-powered stock screener untuk saham Indonesia (IDX) menggunakan:
 
 Screening otomatis saham IDX berdasarkan:
 
-- Trend structure
-- RSI momentum
-- Volume breakout
-- Bollinger breakout
-- MACD momentum
-- ADX trend strength
-- ATR volatility filter
+- Trend Structure
+- EMA & MA Alignment
+- RSI Momentum
+- MACD Momentum
+- ADX Trend Strength
+- Relative Volume
+- Bollinger Expansion
+- ATR Volatility Filter
+- Breakout Detection
+- Relative Strength vs IHSG
 
 ---
 
 ## ✅ Market Regime Detection
 
-Deteksi kondisi market:
+Deteksi kondisi market otomatis berdasarkan IHSG:
 
-- Bullish
-- Bearish
-- Sideways
-
-berdasarkan IHSG.
-
----
-
-## ✅ Morning Confirmation
-
-Validasi intraday:
-
-- Gap analysis
-- Candle structure
-- Volume confirmation
+- STRONG_BULL
+- BULL
+- ACCUMULATION
+- SIDEWAYS
+- DISTRIBUTION
+- BEARISH
+- PANIC
+- RECOVERY
 
 ---
 
-## ✅ Telegram Notification
+## ✅ Market Breadth Analysis
 
-Auto send signal ke Telegram:
+Analisis kesehatan market:
 
-- Night screener
-- Morning confirmation
-- Trade audit
-- TP / SL notification
+- % saham di atas MA20
+- RSI Breadth
+- Breakout Breadth
+- Relative Strength Breadth
+
+---
+
+## ✅ Sector Strength Analysis
+
+Ranking sektor IDX berdasarkan:
+
+- Average Return
+- Relative Strength
+- RSI Momentum
+- Bullish Breadth
+
+---
+
+## ✅ Morning Confirmation Engine
+
+Validasi intraday setup menggunakan:
+
+- Gap Analysis
+- Candle Structure
+- Volume Confirmation
+- Intraday Momentum
+- Trend Confirmation
+
+---
+
+## ✅ Telegram Automation
+
+Auto notification ke Telegram:
+
+- Night Screener
+- Morning Confirmation
+- Trade Audit
+- Stop Loss Hit
+- Take Profit Hit
+- Market Commentary
 
 ---
 
 ## ✅ Paper Trading
 
-Simulasi trading:
+Simulasi trading otomatis:
 
 - Buy
-- Stop loss
-- Take profit
-- Auto close
+- Stop Loss
+- Take Profit
+- Auto Close
+- PnL Tracking
+- Portfolio Analytics
 
 ---
 
-## ✅ Backtesting
+## ✅ Backtesting Engine
 
 Backtest strategy menggunakan:
 
-- MA crossover
-- RSI momentum
-- Volume breakout
+- MA Structure
+- RSI Momentum
+- Volume Breakout
+- Risk Management
 
 ---
 
-## ✅ Automation
+## ✅ AI Learning Engine
 
-GitHub Actions automation:
+AI mengevaluasi performa strategy berdasarkan:
 
-- Night screener
-- Morning confirmation
-- Trade audit
+- Market Regime
+- Confidence Score
+- Winrate
+- Profitability
+
+---
+
+## ✅ Dashboard Analytics
+
+Interactive dashboard menggunakan Streamlit:
+
+- Market Snapshot
+- Screener Dashboard
+- Portfolio Dashboard
+- Analytics Dashboard
+- AI Learning Dashboard
+- Forward Testing Dashboard
+- System Health Dashboard
 
 ---
 
@@ -98,22 +150,28 @@ GitHub Actions automation:
 ```bash
 AI-Stock-Screener/
 │
-├── .github/
-│   └── workflows/
+├── app/
+│   ├── dashboard/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── utils/
+│   │   └── app.py
+│   │
+│   └── runners/
 │
-├── core/
-│
+├── ai/
+├── analytics/
+├── market/
+├── portfolio/
+├── screener/
+├── storage/
+├── strategies/
+├── trading/
 ├── database/
-│
-├── runners/
-│
-├── dashboard/
-│
 ├── watchlist/
-│
 ├── tests/
-│
 ├── logs/
+├── data/
 │
 ├── requirements.txt
 ├── .env
@@ -172,16 +230,40 @@ pip install -r requirements.txt
 
 ---
 
+# 📦 Requirements
+
+- Python 3.11+
+- Streamlit
+- Pandas
+- NumPy
+- Plotly
+- YFinance
+- Supabase
+- TA
+- Backtesting.py
+
+---
+
 # 🔐 Environment Variables
 
 Create `.env`
 
 ```env
-SUPABASE_URL=your_url
-SUPABASE_KEY=your_key
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
 
-TELEGRAM_BOT_TOKEN=your_token
+TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
+```
+
+---
+
+# ⬇️ Download Market Data
+
+Sebelum menjalankan screener:
+
+```bash
+python app/runners/download_market_data.py
 ```
 
 ---
@@ -189,7 +271,7 @@ TELEGRAM_CHAT_ID=your_chat_id
 # ▶️ Run Dashboard
 
 ```bash
-streamlit run dashboard/app.py
+streamlit run app/dashboard/app.py
 ```
 
 ---
@@ -197,7 +279,7 @@ streamlit run dashboard/app.py
 # 🤖 Run AI Screener
 
 ```bash
-python runners/auto_screener.py
+python app/runners/auto_screener.py
 ```
 
 ---
@@ -205,7 +287,7 @@ python runners/auto_screener.py
 # ☀️ Run Morning Confirmation
 
 ```bash
-python runners/morning_confirmation_runner.py
+python app/runners/morning_confirmation_runner.py
 ```
 
 ---
@@ -213,33 +295,59 @@ python runners/morning_confirmation_runner.py
 # 📊 Run Trade Audit
 
 ```bash
-python runners/trade_audit_runner.py
+python app/runners/trade_audit_runner.py
+```
+
+---
+
+# 🧪 Run Backtest
+
+Example:
+
+```python
+from backtest import run_backtest
+
+stats = run_backtest("BBRI.JK")
+
+print(stats)
 ```
 
 ---
 
 # 🧠 AI Scoring Logic
 
-Scoring menggunakan:
+Scoring menggunakan kombinasi:
 
-- MA Trend
-- EMA Trend
-- RSI
-- MACD
-- ADX
-- Volume Analysis
-- Breakout Detection
+- MA Trend Structure
+- EMA Structure
+- RSI Momentum
+- MACD Momentum
+- ADX Trend Strength
+- Volume Expansion
+- Breakout Confirmation
 - ATR Volatility
 - Bollinger Expansion
+- Relative Strength
 
 ---
 
-# 📡 Deployment
+# 📡 Automation
 
-Recommended:
+GitHub Actions automation:
 
-- GitHub Actions
+- Night Screener
+- Morning Confirmation
+- Trade Audit
+- Backup System
+
+---
+
+# ☁️ Deployment
+
+Recommended stack:
+
 - Streamlit Cloud
+- GitHub Actions
 - Supabase
 
 ---

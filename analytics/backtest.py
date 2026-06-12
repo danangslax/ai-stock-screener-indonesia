@@ -1,8 +1,15 @@
 import pandas as pd
 
-from backtesting import Backtest, Strategy
+from backtesting import (
+    Backtest,
+    Strategy,
+)
 
 from storage.data_loader import load_stock_data
+
+from ai.ai_parameters import load_parameters
+
+from infrastructure.logger import logger
 
 # ======================================
 # SWING STRATEGY
@@ -11,55 +18,99 @@ from storage.data_loader import load_stock_data
 
 class SwingStrategy(Strategy):
 
+    # ======================================
+    # DEFAULT PARAMETERS
+    # ======================================
+
+    min_rsi = 50
+
+    min_adx = 20
+
+    stop_loss_pct = 0.05
+
+    take_profit_pct = 0.10
+
+    volume_multiplier = 1.5
+
+    # ======================================
+    # INIT
+    # ======================================
+
     def init(self):
 
         pass
 
+    # ======================================
+    # NEXT
+    # ======================================
+
     def next(self):
 
-        price = self.data.Close[-1]
+        try:
 
-        ma5 = self.data.MA5[-1]
+            price = self.data.Close[-1]
 
-        ma20 = self.data.MA20[-1]
+            ma5 = self.data.MA5[-1]
 
-        rsi = self.data.RSI[-1]
+            ma20 = self.data.MA20[-1]
 
-        volume = self.data.Volume[-1]
+            ema20 = self.data.EMA20[-1]
 
-        vol_ma20 = self.data.VOL_MA20[-1]
+            ema50 = self.data.EMA50[-1]
 
-        # ======================================
-        # BUY CONDITION
-        # ======================================
+            rsi = self.data.RSI[-1]
 
-        if (
-            price > ma5
-            and price > ma20
-            and ma5 > ma20
-            and 50 <= rsi <= 75
-            and volume > (1.5 * vol_ma20)
-        ):
+            adx = self.data.ADX[-1]
 
-            if not self.position:
+            volume = self.data.Volume[-1]
 
-                self.buy()
+            vol_ma20 = self.data.VOL_MA20[-1]
 
-        # ======================================
-        # SELL CONDITION
-        # ======================================
+            # ======================================
+            # BUY CONDITIONS
+            # ======================================
 
-        if self.position:
+            bullish_structure = price > ma5 and price > ma20 and ema20 > ema50
 
-            # STOP LOSS
-            if price < (self.position.entry_price * 0.95):
+            momentum = rsi >= self.min_rsi and adx >= self.min_adx
 
-                self.position.close()
+            volume_confirmation = volume > (self.volume_multiplier * vol_ma20)
 
-            # TAKE PROFIT
-            elif price > (self.position.entry_price * 1.10):
+            # ======================================
+            # ENTRY
+            # ======================================
 
-                self.position.close()
+            if bullish_structure and momentum and volume_confirmation:
+
+                if not self.position:
+
+                    self.buy()
+
+            # ======================================
+            # EXIT MANAGEMENT
+            # ======================================
+
+            if self.position:
+
+                stop_price = self.position.entry_price * (1 - self.stop_loss_pct)
+
+                take_profit_price = self.position.entry_price * (
+                    1 + self.take_profit_pct
+                )
+
+                # STOP LOSS
+                if price <= stop_price:
+
+                    self.position.close()
+
+                # TAKE PROFIT
+                elif price >= take_profit_price:
+
+                    self.position.close()
+
+        except Exception as e:
+
+            logger.error(f"Strategy error: {e}")
 
 
 # ======================================
@@ -67,17 +118,33 @@ class SwingStrategy(Strategy):
 # ======================================
 
 
-def run_backtest(symbol, period="1y"):
+def run_backtest(
+    symbol,
+    period="1y",
+    initial_cash=100_000_000,
+    commission=0.0015,
+):
 
     try:
 
-        print(f"🧪 Running backtest " f"{symbol}")
+        logger.info(f"Running backtest " f"{symbol}")
 
         # ======================================
-        # LOAD ENRICHED CACHE
+        # LOAD PARAMETERS
         # ======================================
 
-        df = load_stock_data(symbol, period=period, interval="1d", cache_only=True)
+        parameters = load_parameters()
+
+        # ======================================
+        # LOAD DATA
+        # ======================================
+
+        df = load_stock_data(
+            symbol,
+            period=period,
+            interval="1d",
+            cache_only=True,
+        )
 
         # ======================================
         # VALIDATION
@@ -85,7 +152,7 @@ def run_backtest(symbol, period="1y"):
 
         if df.empty:
 
-            print(f"⚠️ Empty data " f"{symbol}")
+            logger.warning(f"Empty data " f"{symbol}")
 
             return None
 
@@ -101,7 +168,10 @@ def run_backtest(symbol, period="1y"):
             "Volume",
             "MA5",
             "MA20",
+            "EMA20",
+            "EMA50",
             "RSI",
+            "ADX",
             "VOL_MA20",
         ]
 
@@ -109,25 +179,41 @@ def run_backtest(symbol, period="1y"):
 
         if missing_columns:
 
-            print(f"⚠️ Missing columns " f"{symbol}: " f"{missing_columns}")
+            logger.warning(f"Missing columns " f"{symbol}: " f"{missing_columns}")
 
             return None
 
         # ======================================
-        # REMOVE NAN
+        # CLEAN DATA
         # ======================================
 
+        df = df.copy()
+
         df = df.dropna()
+
+        df = df.sort_index()
 
         # ======================================
         # VALIDATION
         # ======================================
 
-        if len(df) < 50:
+        if len(df) < 100:
 
-            print(f"⚠️ Not enough data " f"{symbol}")
+            logger.warning(f"Not enough data " f"{symbol}")
 
             return None
+
+        # ======================================
+        # APPLY AI PARAMETERS
+        # ======================================
+
+        SwingStrategy.min_rsi = parameters.get("min_rsi", 50)
+
+        SwingStrategy.min_adx = parameters.get("min_adx", 20)
+
+        SwingStrategy.stop_loss_pct = 0.05
+
+        SwingStrategy.take_profit_pct = 0.10
 
         # ======================================
         # BACKTEST ENGINE
@@ -136,23 +222,74 @@ def run_backtest(symbol, period="1y"):
         bt = Backtest(
             df,
             SwingStrategy,
-            cash=100_000_000,
-            commission=0.0015,
+            cash=initial_cash,
+            commission=commission,
             exclusive_orders=True,
         )
 
         # ======================================
-        # RUN BACKTEST
+        # RUN
         # ======================================
 
         stats = bt.run()
 
-        print(f"✅ Backtest completed " f"{symbol}")
+        # ======================================
+        # CLEAN RESULT
+        # ======================================
 
-        return stats
+        result = {
+            "symbol": symbol,
+            "return_pct": round(stats["Return [%]"], 2),
+            "buy_hold_return": round(stats["Buy & Hold Return [%]"], 2),
+            "max_drawdown": round(stats["Max. Drawdown [%]"], 2),
+            "winrate": round(stats["Win Rate [%]"], 2),
+            "profit_factor": round(stats["Profit Factor"], 2),
+            "sharpe_ratio": round(stats["Sharpe Ratio"], 2),
+            "total_trades": int(stats["# Trades"]),
+            "expectancy": round(stats["Expectancy [%]"], 2),
+        }
+
+        # ======================================
+        # SURVIVABILITY
+        # ======================================
+
+        survivability = "WEAK"
+
+        if (
+            result["winrate"] >= 55
+            and result["profit_factor"] >= 1.5
+            and abs(result["max_drawdown"]) <= 15
+        ):
+
+            survivability = "ROBUST"
+
+        elif result["winrate"] >= 45 and result["profit_factor"] >= 1:
+
+            survivability = "STABLE"
+
+        result["survivability"] = survivability
+
+        # ======================================
+        # AI SCORE
+        # ======================================
+
+        ai_score = round(
+            (result["winrate"] * 0.35)
+            + (result["profit_factor"] * 20)
+            + (max(0, 20 - abs(result["max_drawdown"])) * 1.5),
+            2,
+        )
+
+        ai_score = min(ai_score, 100)
+
+        result["ai_score"] = ai_score
+
+        logger.info(f"Backtest completed " f"{symbol}")
+
+        return result
 
     except Exception as e:
 
-        print(f"❌ BACKTEST ERROR " f"{symbol}: {e}")
+        logger.error(f"BACKTEST ERROR " f"{symbol}: {e}")
 
         return None

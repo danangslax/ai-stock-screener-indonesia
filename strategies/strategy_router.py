@@ -1,3 +1,5 @@
+from infrastructure.logger import logger
+
 from strategies.breakout_strategy import breakout_strategy
 
 from strategies.defensive_strategy import defensive_strategy
@@ -13,13 +15,37 @@ def run_strategy(market_status, latest, df):
 
     try:
 
+        logger.info(f"Routing strategy " f"for regime: " f"{market_status}")
+
+        # ======================================
+        # STRATEGY RESULTS
+        # ======================================
+
+        breakout_result = breakout_strategy(latest, df)
+
+        defensive_result = defensive_strategy(latest, df)
+
+        pullback_result = pullback_strategy(latest, df)
+
+        # ======================================
+        # CANDIDATES
+        # ======================================
+
+        candidates = []
+
         # ======================================
         # STRONG BULL
         # ======================================
 
         if market_status == "STRONG_BULL":
 
-            return breakout_strategy(latest, df)
+            if breakout_result:
+
+                candidates.append(breakout_result)
+
+            if pullback_result:
+
+                candidates.append(pullback_result)
 
         # ======================================
         # BULL
@@ -27,13 +53,13 @@ def run_strategy(market_status, latest, df):
 
         elif market_status == "BULL":
 
-            breakout_result = breakout_strategy(latest, df)
+            if breakout_result:
 
-            if breakout_result and breakout_result["status"] == "PASS":
+                candidates.append(breakout_result)
 
-                return breakout_result
+            if pullback_result:
 
-            return pullback_strategy(latest, df)
+                candidates.append(pullback_result)
 
         # ======================================
         # ACCUMULATION
@@ -41,7 +67,13 @@ def run_strategy(market_status, latest, df):
 
         elif market_status == "ACCUMULATION":
 
-            return defensive_strategy(latest, df)
+            if pullback_result:
+
+                candidates.append(pullback_result)
+
+            if defensive_result:
+
+                candidates.append(defensive_result)
 
         # ======================================
         # SIDEWAYS
@@ -49,7 +81,9 @@ def run_strategy(market_status, latest, df):
 
         elif market_status == "SIDEWAYS":
 
-            return defensive_strategy(latest, df)
+            if defensive_result:
+
+                candidates.append(defensive_result)
 
         # ======================================
         # DISTRIBUTION
@@ -57,7 +91,9 @@ def run_strategy(market_status, latest, df):
 
         elif market_status == "DISTRIBUTION":
 
-            return defensive_strategy(latest, df)
+            if defensive_result:
+
+                candidates.append(defensive_result)
 
         # ======================================
         # PANIC
@@ -65,7 +101,9 @@ def run_strategy(market_status, latest, df):
 
         elif market_status == "PANIC":
 
-            return defensive_strategy(latest, df)
+            if defensive_result:
+
+                candidates.append(defensive_result)
 
         # ======================================
         # BEARISH
@@ -73,7 +111,9 @@ def run_strategy(market_status, latest, df):
 
         elif market_status == "BEARISH":
 
-            return defensive_strategy(latest, df)
+            if defensive_result:
+
+                candidates.append(defensive_result)
 
         # ======================================
         # RECOVERY
@@ -81,16 +121,63 @@ def run_strategy(market_status, latest, df):
 
         elif market_status == "RECOVERY":
 
-            return breakout_strategy(latest, df)
+            if pullback_result:
+
+                candidates.append(pullback_result)
+
+            if breakout_result:
+
+                candidates.append(breakout_result)
 
         # ======================================
-        # DEFAULT FALLBACK
+        # UNKNOWN
         # ======================================
 
-        return defensive_strategy(latest, df)
+        else:
+
+            if defensive_result:
+
+                candidates.append(defensive_result)
+
+        # ======================================
+        # VALIDATION
+        # ======================================
+
+        if not candidates:
+
+            return None
+
+        # ======================================
+        # SORT BY SCORE
+        # ======================================
+
+        candidates = sorted(candidates, key=lambda x: x.get("score", 0), reverse=True)
+
+        # ======================================
+        # BEST STRATEGY
+        # ======================================
+
+        best_strategy = candidates[0]
+
+        # ======================================
+        # ADD ROUTING INFO
+        # ======================================
+
+        best_strategy["market_regime"] = market_status
+
+        best_strategy["candidate_count"] = len(candidates)
+
+        logger.info(
+            f"Selected strategy: "
+            f"{best_strategy['strategy']} "
+            f"| Score="
+            f"{best_strategy['score']}"
+        )
+
+        return best_strategy
 
     except Exception as e:
 
-        print(f"❌ Strategy router error: " f"{e}")
+        logger.error(f"Strategy router " f"error: {e}")
 
         return None

@@ -1,7 +1,10 @@
 import os
+
 import requests
 
 from dotenv import load_dotenv
+
+from infrastructure.logger import logger
 
 # ======================================
 # LOAD ENVIRONMENT VARIABLES
@@ -19,11 +22,11 @@ CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 if not BOT_TOKEN:
 
-    print("❌ TELEGRAM_BOT_TOKEN missing")
+    logger.warning("TELEGRAM_BOT_TOKEN missing")
 
 if not CHAT_ID:
 
-    print("❌ TELEGRAM_CHAT_ID missing")
+    logger.warning("TELEGRAM_CHAT_ID missing")
 
 # ======================================
 # SEND TELEGRAM MESSAGE
@@ -64,31 +67,35 @@ def send_telegram_message(message, parse_mode="HTML"):
 
         response = requests.post(url, json=payload, timeout=15)
 
+        result = response.json()
+
         # ======================================
-        # RESPONSE
+        # SUCCESS
         # ======================================
 
-        if response.status_code == 200:
+        if response.status_code == 200 and result.get("ok"):
 
-            print("✅ Telegram message sent")
+            logger.info("Telegram message sent")
 
-            return response.json()
+            return result
 
-        else:
+        # ======================================
+        # FAILED
+        # ======================================
 
-            print(f"❌ Telegram API Error: " f"{response.text}")
+        logger.error(f"Telegram API Error: " f"{result}")
 
-            return {"status": "error", "message": response.text}
+        return {"status": "error", "message": result}
 
     except requests.Timeout:
 
-        print("❌ Telegram timeout")
+        logger.error("Telegram timeout")
 
         return {"status": "error", "message": "timeout"}
 
     except Exception as e:
 
-        print(f"❌ Telegram Error: {e}")
+        logger.error(f"Telegram Error: {e}")
 
         return {"status": "error", "message": str(e)}
 
@@ -142,7 +149,7 @@ def format_screener_message(top_pick, market_status=None):
 
     except Exception as e:
 
-        print(f"❌ Format Error: {e}")
+        logger.error(f"Format Error: {e}")
 
         return "❌ Failed to format message"
 
@@ -187,6 +194,6 @@ def format_confirmation_message(symbol, confirmation):
 
     except Exception as e:
 
-        print(f"❌ Confirmation Format Error: {e}")
+        logger.error(f"Confirmation Format " f"Error: {e}")
 
         return "❌ Failed to format confirmation"

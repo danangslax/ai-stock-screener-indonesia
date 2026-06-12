@@ -1,17 +1,29 @@
 import pandas as pd
 
+from infrastructure.logger import logger
+
 # ======================================
 # VALIDATION ENGINE
 # ======================================
 
 
-def validate_strategy_by_regime(trades):
+def validate_strategy_by_regime(trades, minimum_sample=5):
 
     try:
 
+        # ======================================
+        # VALIDATION
+        # ======================================
+
         if not trades:
 
+            logger.warning("Validation engine " "received empty trades")
+
             return pd.DataFrame()
+
+        # ======================================
+        # DATAFRAME
+        # ======================================
 
         df = pd.DataFrame(trades)
 
@@ -25,10 +37,24 @@ def validate_strategy_by_regime(trades):
 
         if missing:
 
+            logger.warning(f"Validation engine " f"missing columns: " f"{missing}")
+
             return pd.DataFrame()
 
         # ======================================
-        # WIN COLUMN
+        # CLEAN PNL
+        # ======================================
+
+        df["profit_loss"] = pd.to_numeric(df["profit_loss"], errors="coerce")
+
+        df = df.dropna(subset=["profit_loss"])
+
+        if df.empty:
+
+            return pd.DataFrame()
+
+        # ======================================
+        # WIN / LOSS
         # ======================================
 
         df["is_win"] = df["profit_loss"] > 0
@@ -39,7 +65,12 @@ def validate_strategy_by_regime(trades):
 
         grouped = (
             df.groupby(["market_regime", "strategy"])
-            .agg({"profit_loss": ["mean", "sum"], "is_win": "mean"})
+            .agg(
+                {
+                    "profit_loss": ["mean", "sum", "count"],
+                    "is_win": "mean",
+                }
+            )
             .reset_index()
         )
 
@@ -52,8 +83,21 @@ def validate_strategy_by_regime(trades):
             "Strategy",
             "Average_PnL",
             "Total_PnL",
+            "Total_Trades",
             "Winrate",
         ]
+
+        # ======================================
+        # FILTER SAMPLE SIZE
+        # ======================================
+
+        grouped = grouped[grouped["Total_Trades"] >= minimum_sample]
+
+        if grouped.empty:
+
+            logger.warning("No valid validation samples")
+
+            return pd.DataFrame()
 
         # ======================================
         # CLEAN DATA
@@ -66,51 +110,131 @@ def validate_strategy_by_regime(trades):
         grouped["Winrate"] = (grouped["Winrate"] * 100).round(2)
 
         # ======================================
-        # VALIDATION SCORE
+        # EXPECTANCY
         # ======================================
 
-        grouped["Validation_Score"] = (
-            (grouped["Winrate"] * 0.6) + (grouped["Average_PnL"] * 0.4)
+        grouped["Expectancy"] = (
+            grouped["Average_PnL"] * grouped["Winrate"] / 100
         ).round(2)
 
         # ======================================
-        # STATUS
+        # VALIDATION SCORE
         # ======================================
 
-        status = []
+        validation_scores = []
+
+        statuses = []
+
+        insights = []
+
+        # ======================================
+        # LOOP
+        # ======================================
 
         for _, row in grouped.iterrows():
 
-            score = row["Validation_Score"]
+            winrate = row["Winrate"]
 
-            if score >= 70:
+            expectancy = row["Expectancy"]
+
+            total_pnl = row["Total_PnL"]
+
+            total_trades = row["Total_Trades"]
+
+            strategy = row["Strategy"]
+
+            regime = row["Market_Regime"]
+
+            # ======================================
+            # SCORE
+            # ======================================
+
+            score = 0
+
+            # Winrate
+            score += min(winrate * 0.5, 50)
+
+            # Expectancy
+            if expectancy > 0:
+
+                score += min(expectancy * 2, 30)
+
+            # Consistency
+            if total_trades >= 20:
+
+                score += 10
+
+            if total_pnl > 0:
+
+                score += 10
+
+            score = round(min(score, 100), 2)
+
+            validation_scores.append(score)
+
+            # ======================================
+            # STATUS
+            # ======================================
+
+            if score >= 80:
 
                 label = "ROBUST"
 
-            elif score >= 50:
+                insight = f"{strategy} " f"very stable during " f"{regime}"
+
+            elif score >= 60:
 
                 label = "STABLE"
+
+                insight = f"{strategy} " f"reasonably effective " f"during {regime}"
 
             else:
 
                 label = "WEAK"
 
-            status.append(label)
+                insight = f"{strategy} " f"underperforms during " f"{regime}"
 
-        grouped["Status"] = status
+            # ======================================
+            # LOW SAMPLE WARNING
+            # ======================================
+
+            if total_trades < 10:
+
+                insight += " | low sample size"
+
+            statuses.append(label)
+
+            insights.append(insight)
+
+        # ======================================
+        # SAVE RESULTS
+        # ======================================
+
+        grouped["Validation_Score"] = validation_scores
+
+        grouped["Status"] = statuses
+
+        grouped["AI_Insight"] = insights
 
         # ======================================
         # SORT
         # ======================================
 
         grouped = grouped.sort_values(
-            by="Validation_Score", ascending=False
+            by=[
+                "Validation_Score",
+                "Winrate",
+                "Expectancy",
+            ],
+            ascending=False,
         ).reset_index(drop=True)
+
+        logger.info(f"Validation engine " f"analyzed " f"{len(grouped)} " f"profiles")
 
         return grouped
 
     except Exception as e:
 
-        print(f"❌ Validation engine error: " f"{e}")
+        logger.error(f"Validation engine " f"error: {e}")
 
         return pd.DataFrame()

@@ -1,4 +1,8 @@
-from core.data_loader import load_stock_data
+import pandas as pd
+
+from infrastructure.logger import logger
+
+from storage.data_loader import load_stock_data
 
 from storage.indicators import add_indicators
 
@@ -11,11 +15,13 @@ def morning_confirmation(symbol):
 
     try:
 
+        logger.info(f"Morning confirmation " f"{symbol}")
+
         # ======================================
         # LOAD INTRADAY DATA
         # ======================================
 
-        intraday = load_stock_data(symbol, period="5d", interval="15m")
+        intraday = load_stock_data(symbol, period="5d", interval="15m", use_cache=False)
 
         # ======================================
         # VALIDATION
@@ -43,7 +49,11 @@ def morning_confirmation(symbol):
         # LOAD DAILY DATA
         # ======================================
 
-        daily = load_stock_data(symbol, period="3mo", interval="1d")
+        daily = load_stock_data(symbol, period="3mo", interval="1d", use_cache=True)
+
+        if daily.empty:
+
+            return "NO DATA"
 
         daily = add_indicators(daily)
 
@@ -96,6 +106,24 @@ def morning_confirmation(symbol):
         adx = float(latest["ADX"])
 
         # ======================================
+        # NAN VALIDATION
+        # ======================================
+
+        metrics = [
+            current_price,
+            current_volume,
+            average_volume,
+            rsi,
+            macd,
+            macd_signal,
+            adx,
+        ]
+
+        if any(pd.isna(v) for v in metrics):
+
+            return "NO DATA"
+
+        # ======================================
         # GAP ANALYSIS
         # ======================================
 
@@ -111,8 +139,6 @@ def morning_confirmation(symbol):
 
         upper_wick = high_price - max(current_price, open_price)
 
-        lower_wick = min(current_price, open_price) - low_price
-
         # ======================================
         # VOLUME CONFIRMATION
         # ======================================
@@ -127,38 +153,6 @@ def morning_confirmation(symbol):
             current_price > daily_latest["EMA20"]
             and daily_latest["EMA20"] > daily_latest["EMA50"]
         )
-
-        # ======================================
-        # STRONG BUY
-        # ======================================
-
-        if (
-            bullish_trend
-            and current_price > previous_close
-            and candle_body > 0
-            and volume_ratio >= 1.5
-            and rsi >= 60
-            and macd > macd_signal
-            and adx >= 20
-            and gap_percent < 8
-            and upper_wick < (candle_range * 0.35)
-        ):
-
-            return "STRONG BUY"
-
-        # ======================================
-        # BUY
-        # ======================================
-
-        if (
-            bullish_trend
-            and current_price > previous_close
-            and candle_body > 0
-            and rsi >= 50
-            and gap_percent < 10
-        ):
-
-            return "BUY"
 
         # ======================================
         # AVOID CONDITIONS
@@ -182,6 +176,39 @@ def morning_confirmation(symbol):
             return "WEAK"
 
         # ======================================
+        # STRONG BUY
+        # ======================================
+
+        if (
+            bullish_trend
+            and current_price > previous_close
+            and candle_body > 0
+            and volume_ratio >= 1.5
+            and rsi >= 60
+            and macd > macd_signal
+            and adx >= 20
+            and gap_percent < 8
+            and candle_range > 0
+            and upper_wick < (candle_range * 0.35)
+        ):
+
+            return "STRONG BUY"
+
+        # ======================================
+        # BUY
+        # ======================================
+
+        if (
+            bullish_trend
+            and current_price > previous_close
+            and candle_body > 0
+            and rsi >= 50
+            and gap_percent < 10
+        ):
+
+            return "BUY"
+
+        # ======================================
         # DEFAULT
         # ======================================
 
@@ -189,6 +216,6 @@ def morning_confirmation(symbol):
 
     except Exception as e:
 
-        print(f"❌ Confirmation Error " f"{symbol}: {e}")
+        logger.error(f"Confirmation Error " f"{symbol}: {e}")
 
         return "ERROR"

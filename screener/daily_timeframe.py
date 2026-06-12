@@ -1,5 +1,7 @@
 import pandas as pd
 
+from infrastructure.logger import logger
+
 # ======================================
 # DAILY TIMEFRAME ANALYSIS
 # ======================================
@@ -30,6 +32,7 @@ def analyze_daily_timeframe(df):
         # ======================================
 
         required_columns = [
+            "Close",
             "EMA20",
             "EMA50",
             "EMA200",
@@ -37,11 +40,19 @@ def analyze_daily_timeframe(df):
             "ADX",
             "MACD",
             "MACD_SIGNAL",
+            "Volume",
+            "VOL_MA20",
+            "VOLATILITY",
+            "ATR",
         ]
 
         for col in required_columns:
 
             if col not in df.columns:
+
+                return None
+
+            if pd.isna(latest[col]):
 
                 return None
 
@@ -65,61 +76,81 @@ def analyze_daily_timeframe(df):
 
         macd_signal = float(latest["MACD_SIGNAL"])
 
+        volume = float(latest["Volume"])
+
+        vol_ma20 = float(latest["VOL_MA20"])
+
+        volatility = float(latest["VOLATILITY"])
+
+        atr = float(latest["ATR"])
+
         # ======================================
-        # SCORE
+        # VALIDATION
         # ======================================
 
-        score = 0
+        if vol_ma20 <= 0:
+
+            return None
+
+        # ======================================
+        # METRICS
+        # ======================================
+
+        volume_ratio = round(volume / vol_ma20, 2)
+
+        atr_percent = round(atr / close_price, 4)
+
+        # ======================================
+        # SCORE CONTAINERS
+        # ======================================
+
+        trend_score = 0
+
+        momentum_score = 0
+
+        volume_score = 0
+
+        stability_score = 0
 
         # ======================================
         # TREND STRUCTURE
         # ======================================
 
-        # Price above EMA20
         if close_price > ema20:
 
-            score += 15
+            trend_score += 10
 
-        # EMA20 above EMA50
         if ema20 > ema50:
 
-            score += 20
+            trend_score += 15
 
-        # EMA50 above EMA200
         if ema50 > ema200:
 
-            score += 25
+            trend_score += 20
 
-        # Perfect bullish structure
         if close_price > ema20 and ema20 > ema50 and ema50 > ema200:
 
-            score += 20
+            trend_score += 20
 
         # ======================================
         # MOMENTUM
         # ======================================
 
-        # RSI bullish
         if rsi >= 50:
 
-            score += 10
+            momentum_score += 10
 
-        # RSI strong
         if rsi >= 65:
 
-            score += 5
-
-        # ======================================
-        # TREND STRENGTH
-        # ======================================
+            momentum_score += 5
 
         if adx >= 18:
 
-            score += 10
+            momentum_score += 10
 
         if adx >= 35:
 
-            score += 5
+            momentum_score += 5
 
         # ======================================
         # MACD CONFIRMATION
@@ -127,30 +158,53 @@ def analyze_daily_timeframe(df):
 
         if macd > macd_signal:
 
-            score += 10
+            momentum_score += 10
 
-        # MACD crossover
         if previous["MACD"] < previous["MACD_SIGNAL"] and macd > macd_signal:
 
-            score += 10
+            momentum_score += 10
 
         # ======================================
-        # SCORE LIMIT
+        # VOLUME CONFIRMATION
         # ======================================
 
-        if score > 100:
+        if volume_ratio > 1:
 
-            score = 100
+            volume_score += 5
+
+        if volume_ratio > 1.5:
+
+            volume_score += 5
+
+        # ======================================
+        # VOLATILITY
+        # ======================================
+
+        if volatility < 0.05:
+
+            stability_score += 5
+
+        if 0.02 <= atr_percent <= 0.08:
+
+            stability_score += 5
+
+        # ======================================
+        # FINAL SCORE
+        # ======================================
+
+        score = trend_score + momentum_score + volume_score + stability_score
+
+        score = min(score, 100)
 
         # ======================================
         # TREND STATUS
         # ======================================
 
-        if score >= 75:
+        if score >= 80:
 
             trend_status = "STRONG BULLISH"
 
-        elif score >= 60:
+        elif score >= 65:
 
             trend_status = "BULLISH"
 
@@ -163,12 +217,31 @@ def analyze_daily_timeframe(df):
             trend_status = "WEAK"
 
         # ======================================
-        # RETURN RESULT
+        # CONFIDENCE
+        # ======================================
+
+        confidence = "LOW"
+
+        if score >= 85:
+
+            confidence = "ELITE"
+
+        elif score >= 70:
+
+            confidence = "HIGH"
+
+        elif score >= 55:
+
+            confidence = "MEDIUM"
+
+        # ======================================
+        # RESULT
         # ======================================
 
         return {
             "score": score,
             "status": trend_status,
+            "confidence": confidence,
             "close": round(close_price, 2),
             "ema20": round(ema20, 2),
             "ema50": round(ema50, 2),
@@ -176,10 +249,12 @@ def analyze_daily_timeframe(df):
             "rsi": round(rsi, 2),
             "adx": round(adx, 2),
             "macd": round(macd, 2),
+            "volume_ratio": (volume_ratio),
+            "atr_percent": (atr_percent),
         }
 
     except Exception as e:
 
-        print(f"DAILY TIMEFRAME ERROR: " f"{e}")
+        logger.error(f"Daily timeframe " f"error: {e}")
 
         return None

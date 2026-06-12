@@ -1,5 +1,14 @@
 import ta
+
 import pandas as pd
+
+from infrastructure.logger import logger
+
+# ======================================
+# REQUIRED COLUMNS
+# ======================================
+
+REQUIRED_COLUMNS = ["Open", "High", "Low", "Close", "Volume"]
 
 # ======================================
 # ADD TECHNICAL INDICATORS
@@ -16,15 +25,41 @@ def add_indicators(df):
 
         if df.empty:
 
-            return df
+            logger.warning("Empty dataframe")
 
-        required_columns = ["Open", "High", "Low", "Close", "Volume"]
+            return pd.DataFrame()
 
-        for column in required_columns:
+        # ======================================
+        # COPY DATAFRAME
+        # ======================================
+
+        df = df.copy()
+
+        # ======================================
+        # REQUIRED COLUMNS
+        # ======================================
+
+        for column in REQUIRED_COLUMNS:
 
             if column not in df.columns:
 
                 raise ValueError(f"Missing column: {column}")
+
+        # ======================================
+        # MINIMUM DATA
+        # ======================================
+
+        if len(df) < 200:
+
+            logger.warning("Insufficient data " "for EMA200")
+
+            return pd.DataFrame()
+
+        # ======================================
+        # FORCE NUMERIC
+        # ======================================
+
+        df[REQUIRED_COLUMNS] = df[REQUIRED_COLUMNS].astype(float)
 
         # ======================================
         # SIMPLE MOVING AVERAGE
@@ -50,7 +85,7 @@ def add_indicators(df):
         # VOLUME MOVING AVERAGE
         # ======================================
 
-        df["VOL_MA20"] = ta.trend.sma_indicator(close=df["Volume"], window=20)
+        df["VOL_MA20"] = df["Volume"].rolling(20).mean()
 
         # ======================================
         # RSI
@@ -132,18 +167,16 @@ def add_indicators(df):
         # CLEAN DATA
         # ======================================
 
-        df = df.copy()
-
         df = df.dropna()
 
         df = df.sort_index()
 
-        print("✅ Indicators added")
+        logger.info("Indicators added")
 
         return df
 
     except Exception as e:
 
-        print(f"❌ Indicator Error: {e}")
+        logger.error(f"Indicator Error: {e}")
 
         return pd.DataFrame()
