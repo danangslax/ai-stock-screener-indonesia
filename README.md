@@ -2,14 +2,14 @@
 
 AI-powered stock screener untuk saham Indonesia (IDX) menggunakan:
 
-* Streamlit Dashboard
-* Technical Analysis Engine
-* AI Scoring System
-* Telegram Notification
-* Paper Trading
-* Backtesting Engine
-* Supabase Database
-* GitHub Actions Automation
+- Streamlit Dashboard
+- Technical Analysis Engine
+- AI Scoring System
+- Telegram Notification
+- Paper Trading
+- Backtesting Engine
+- Supabase Database
+- GitHub Actions Automation
 
 ---
 
@@ -19,13 +19,13 @@ AI-powered stock screener untuk saham Indonesia (IDX) menggunakan:
 
 Screening otomatis saham IDX berdasarkan:
 
-* Trend structure
-* RSI momentum
-* Volume breakout
-* Bollinger breakout
-* MACD momentum
-* ADX trend strength
-* ATR volatility filter
+- Trend structure
+- RSI momentum
+- Volume breakout
+- Bollinger breakout
+- MACD momentum
+- ADX trend strength
+- ATR volatility filter
 
 ---
 
@@ -33,9 +33,9 @@ Screening otomatis saham IDX berdasarkan:
 
 Deteksi kondisi market:
 
-* Bullish
-* Bearish
-* Sideways
+- Bullish
+- Bearish
+- Sideways
 
 berdasarkan IHSG.
 
@@ -45,9 +45,9 @@ berdasarkan IHSG.
 
 Validasi intraday:
 
-* Gap analysis
-* Candle structure
-* Volume confirmation
+- Gap analysis
+- Candle structure
+- Volume confirmation
 
 ---
 
@@ -55,10 +55,10 @@ Validasi intraday:
 
 Auto send signal ke Telegram:
 
-* Night screener
-* Morning confirmation
-* Trade audit
-* TP / SL notification
+- Night screener
+- Morning confirmation
+- Trade audit
+- TP / SL notification
 
 ---
 
@@ -66,10 +66,10 @@ Auto send signal ke Telegram:
 
 Simulasi trading:
 
-* Buy
-* Stop loss
-* Take profit
-* Auto close
+- Buy
+- Stop loss
+- Take profit
+- Auto close
 
 ---
 
@@ -77,9 +77,9 @@ Simulasi trading:
 
 Backtest strategy menggunakan:
 
-* MA crossover
-* RSI momentum
-* Volume breakout
+- MA crossover
+- RSI momentum
+- Volume breakout
 
 ---
 
@@ -87,9 +87,9 @@ Backtest strategy menggunakan:
 
 GitHub Actions automation:
 
-* Night screener
-* Morning confirmation
-* Trade audit
+- Night screener
+- Morning confirmation
+- Trade audit
 
 ---
 
@@ -222,15 +222,15 @@ python runners/trade_audit_runner.py
 
 Scoring menggunakan:
 
-* MA Trend
-* EMA Trend
-* RSI
-* MACD
-* ADX
-* Volume Analysis
-* Breakout Detection
-* ATR Volatility
-* Bollinger Expansion
+- MA Trend
+- EMA Trend
+- RSI
+- MACD
+- ADX
+- Volume Analysis
+- Breakout Detection
+- ATR Volatility
+- Bollinger Expansion
 
 ---
 
@@ -238,9 +238,9 @@ Scoring menggunakan:
 
 Recommended:
 
-* GitHub Actions
-* Streamlit Cloud
-* Supabase
+- GitHub Actions
+- Streamlit Cloud
+- Supabase
 
 ---
 

@@ -1,0 +1,5 @@
+{
+    "min_rsi": 50,
+    "min_adx": 20,
+    "max_volatility": 0.15
+}

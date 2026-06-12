@@ -5,7 +5,6 @@
 # ======================================
 
 on:
-
   # ======================================
   # SCHEDULE
   #
@@ -14,8 +13,7 @@ on:
   # ======================================
 
   schedule:
-
-    - cron: '0 12 * * 1-5'
+    - cron: "0 12 * * 1-5"
 
   # ======================================
   # MANUAL RUN
@@ -28,9 +26,7 @@ on:
 # ======================================
 
 jobs:
-
   run-screener:
-
     runs-on: ubuntu-latest
 
     timeout-minutes: 30
@@ -40,11 +36,9 @@ jobs:
     # ======================================
 
     env:
-
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-
       # ======================================
       # CHECKOUT REPOSITORY
       # ======================================
@@ -62,10 +56,9 @@ jobs:
         uses: actions/setup-python@v5
 
         with:
+          python-version: "3.11"
 
-          python-version: '3.11'
-
-          cache: 'pip'
+          cache: "pip"
 
       # ======================================
       # INSTALL DEPENDENCIES
@@ -86,7 +79,6 @@ jobs:
       - name: Run AI Screener
 
         env:
-
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
 
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}

@@ -1,57 +1,36 @@
 import sys
 from pathlib import Path
 
-sys.path.append(
-    str(Path(__file__).resolve().parent.parent)
-)
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from core.confirmation import (
-    morning_confirmation
-)
+from core.confirmation import morning_confirmation
 
 # ======================================
 # TEST SINGLE STOCK
 # ======================================
 
+
 def test_single_confirmation():
 
-    print(
-        "☀️ Testing single confirmation..."
-    )
+    print("☀️ Testing single confirmation...")
 
     symbol = "BBCA.JK"
 
-    result = morning_confirmation(
-        symbol
-    )
+    result = morning_confirmation(symbol)
 
-    print(
-        f"📊 {symbol}: {result}"
-    )
+    print(f"📊 {symbol}: {result}")
 
 
 # ======================================
 # TEST MULTIPLE STOCKS
 # ======================================
 
+
 def test_multiple_confirmations():
 
-    print(
-        "📈 Testing multiple confirmations..."
-    )
+    print("📈 Testing multiple confirmations...")
 
-    symbols = [
-
-        "BBCA.JK",
-
-        "TLKM.JK",
-
-        "BMRI.JK",
-
-        "ASII.JK",
-
-        "BBRI.JK"
-    ]
+    symbols = ["BBCA.JK", "TLKM.JK", "BMRI.JK", "ASII.JK", "BBRI.JK"]
 
     results = []
 
@@ -59,29 +38,15 @@ def test_multiple_confirmations():
 
         try:
 
-            confirmation = (
-                morning_confirmation(
-                    symbol
-                )
-            )
+            confirmation = morning_confirmation(symbol)
 
-            results.append({
+            results.append({"symbol": symbol, "confirmation": confirmation})
 
-                "symbol": symbol,
-
-                "confirmation": confirmation
-            })
-
-            print(
-                f"✅ {symbol}: "
-                f"{confirmation}"
-            )
+            print(f"✅ {symbol}: " f"{confirmation}")
 
         except Exception as e:
 
-            print(
-                f"❌ Error {symbol}: {e}"
-            )
+            print(f"❌ Error {symbol}: {e}")
 
     # ======================================
     # SUMMARY
@@ -91,78 +56,49 @@ def test_multiple_confirmations():
 
     for result in results:
 
-        print(
-
-            f"{result['symbol']} → "
-
-            f"{result['confirmation']}"
-        )
+        print(f"{result['symbol']} → " f"{result['confirmation']}")
 
 
 # ======================================
 # TEST SIGNAL QUALITY
 # ======================================
 
+
 def test_signal_quality():
 
-    print(
-        "🧠 Testing signal quality..."
-    )
+    print("🧠 Testing signal quality...")
 
-    symbols = [
-
-        "BBCA.JK",
-
-        "AMMN.JK",
-
-        "BRPT.JK"
-    ]
+    symbols = ["BBCA.JK", "AMMN.JK", "BRPT.JK"]
 
     for symbol in symbols:
 
-        signal = morning_confirmation(
-            symbol
-        )
+        signal = morning_confirmation(symbol)
 
-        print(
-            f"{symbol}: {signal}"
-        )
+        print(f"{symbol}: {signal}")
 
         if signal == "STRONG BUY":
 
-            print(
-                "🚀 Institutional breakout detected"
-            )
+            print("🚀 Institutional breakout detected")
 
         elif signal == "BUY":
 
-            print(
-                "✅ Valid momentum setup"
-            )
+            print("✅ Valid momentum setup")
 
         elif signal == "WATCH":
 
-            print(
-                "👀 Need more confirmation"
-            )
+            print("👀 Need more confirmation")
 
         elif signal == "WEAK":
 
-            print(
-                "⚠️ Weak momentum"
-            )
+            print("⚠️ Weak momentum")
 
         elif signal == "AVOID":
 
-            print(
-                "❌ High risk setup"
-            )
+            print("❌ High risk setup")
 
         else:
 
-            print(
-                "⚠️ Unknown signal"
-            )
+            print("⚠️ Unknown signal")
 
         print("-" * 40)
 
@@ -173,9 +109,7 @@ def test_signal_quality():
 
 if __name__ == "__main__":
 
-    print(
-        "🚀 Running Confirmation Tests..."
-    )
+    print("🚀 Running Confirmation Tests...")
 
     print("=" * 50)
 
@@ -191,6 +125,4 @@ if __name__ == "__main__":
 
     print("=" * 50)
 
-    print(
-        "✅ Confirmation tests completed"
-    )
+    print("✅ Confirmation tests completed")

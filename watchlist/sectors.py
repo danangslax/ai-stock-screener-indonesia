@@ -1,4 +1,3 @@
-
 SECTOR_MAP = {
     # ======================================
     # BANKING
@@ -56,7 +55,6 @@ SECTOR_MAP = {
     "MASB.JK": "BANKING",
     "VTNY.JK": "BANKING",
     "YOII.JK": "BANKING",
-
     # ======================================
     # ENERGY
     # ======================================
@@ -118,7 +116,6 @@ SECTOR_MAP = {
     "FIRE.JK": "ENERGY",
     "BREN.JK": "ENERGY",
     "PGEO.JK": "ENERGY",
-
     # ======================================
     # MINING
     # ======================================
@@ -168,7 +165,6 @@ SECTOR_MAP = {
     "NICE.JK": "MINING",
     "SMLE.JK": "MINING",
     "EMAS.JK": "MINING",
-
     # ======================================
     # TECHNOLOGY
     # ======================================
@@ -207,7 +203,6 @@ SECTOR_MAP = {
     "IRSX.JK": "TECHNOLOGY",
     "TFAS.JK": "TECHNOLOGY",
     "PGJO.JK": "TECHNOLOGY",
-
     # ======================================
     # HEALTHCARE
     # ======================================
@@ -249,7 +244,6 @@ SECTOR_MAP = {
     "CARE.JK": "HEALTHCARE",
     "DGNS.JK": "HEALTHCARE",
     "CHEK.JK": "HEALTHCARE",
-
     # ======================================
     # PROPERTY
     # ======================================
@@ -294,7 +288,6 @@ SECTOR_MAP = {
     "SAGE.JK": "PROPERTY",
     "GRIA.JK": "PROPERTY",
     "PPRO.JK": "PROPERTY",
-    
     # ======================================
     # TRANSPORTATION
     # ======================================
@@ -329,7 +322,6 @@ SECTOR_MAP = {
     "WINS.JK": "TRANSPORTATION",
     "PSSI.JK": "TRANSPORTATION",
     "TCPI.JK": "TRANSPORTATION",
-    
     # ======================================
     # INSURANCE
     # ======================================
@@ -347,7 +339,6 @@ SECTOR_MAP = {
     "LPPS.JK": "INSURANCE",
     "PNIN.JK": "INSURANCE",
     "PNLF.JK": "INSURANCE",
-    
     # ======================================
     # CONSTRUCTION
     # ======================================
@@ -369,7 +360,6 @@ SECTOR_MAP = {
     "SMKM.JK": "CONSTRUCTION",
     "ARKO.JK": "CONSTRUCTION",
     "KRYA.JK": "CONSTRUCTION",
-    
     # ======================================
     # TELECOMMUNICATION
     # ======================================
@@ -390,7 +380,6 @@ SECTOR_MAP = {
     "TOPS.JK": "TELECOMMUNICATION",
     "MPOW.JK": "TELECOMMUNICATION",
     "MTEL.JK": "TELECOMMUNICATION",
-    
     # ======================================
     # MANUFACTURING
     # ======================================
@@ -436,7 +425,6 @@ SECTOR_MAP = {
     "BRPT.JK": "MANUFACTURING",
     "POLY.JK": "MANUFACTURING",
     "POLI.JK": "MANUFACTURING",
-    
     # ======================================
     # AGRICULTURE
     # ======================================
@@ -470,7 +458,6 @@ SECTOR_MAP = {
     "GOLL.JK": "AGRICULTURE",
     "CEKA.JK": "AGRICULTURE",
     "JAWA.JK": "AGRICULTURE",
-    
     # ======================================
     # FINANCIAL SERVICES
     # ======================================
@@ -499,7 +486,6 @@ SECTOR_MAP = {
     "BPFI.JK": "FINANCIAL_SERVICES",
     "BPII.JK": "FINANCIAL_SERVICES",
     "POOL.JK": "FINANCIAL_SERVICES",
-    
     # ======================================
     # INDUSTRIAL
     # ======================================
@@ -533,7 +519,6 @@ SECTOR_MAP = {
     "KRYA.JK": "INDUSTRIAL",
     "SMKM.JK": "INDUSTRIAL",
     "MTPS.JK": "INDUSTRIAL",
-    
     # ======================================
     # MISCELLANEOUS
     # ======================================
